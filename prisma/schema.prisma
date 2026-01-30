@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model LiterVariation {
+  id              String           @id @default(cuid())
+  sizeInLiters    Float
+  label           String           @unique
+  isDrum          Boolean          @default(false)
+  productVariants ProductVariant[]
+  createdAt       DateTime         @default(now())
+}
+
+model Product {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  brand       Brand            @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brandId     String
+  variants    ProductVariant[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([brandId, name])
+}
+
+model ProductVariant {
+  id                String          @id @default(cuid())
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId         String
+  literVariation    LiterVariation  @relation(fields: [literVariationId], references: [id])
+  literVariationId  String
+  priceUsd          Float
+  sku               String?         @unique
+  stockQuantity     Int             @default(0)
+  lowStockThreshold Int             @default(10)
+  quoteItems        QuoteItem[]
+  invoiceItems      InvoiceItem[]
+  stockMovements    StockMovement[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([productId, literVariationId])
+}
+
+model StockMovement {
+  id             String         @id @default(cuid())
+  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  variantId      String
+  quantityChange Int
+  type           String
+  reference      String?
+  notes          String?
+  createdAt      DateTime       @default(now())
+}
+
+model Customer {
+  id           String    @id @default(cuid())
+  customerCode String?   @unique
+  name         String
+  companyName  String?
+  email        String?
+  phone        String?
+  address      String?
+  quotes       Quote[]
+  invoices     Invoice[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model CompanyInfo {
+  id          String  @id @default(cuid())
+  name        String
+  address     String?
+  phone       String?
+  bankName    String?
+  bankAccUsd  String?
+  bankAccSrd  String?
+  bankAccEur  String?
+}
+
+model ExchangeRate {
+  id            String   @id @default(cuid())
+  rateUsdToSrd  Float
+  isCurrent     Boolean  @default(false)
+  effectiveDate DateTime @default(now())
+  createdAt     DateTime @default(now())
+}
+
+model Quote {
+  id           String      @id @default(cuid())
+  quoteNumber  String      @unique
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  customerId   String
+  exchangeRate Float
+  items        QuoteItem[]
+  subtotalUsd  Float
+  totalUsd     Float
+  status       String      @default("draft")
+  validUntil   DateTime?
+  notes        String?
+  invoices     Invoice[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model QuoteItem {
+  id           String         @id @default(cuid())
+  quote        Quote          @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quoteId      String
+  variant      ProductVariant @relation(fields: [variantId], references: [id])
+  variantId    String
+  quantity     Int
+  unitPriceUsd Float
+  createdAt    DateTime       @default(now())
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  customerId      String
+  quote           Quote?        @relation(fields: [quoteId], references: [id])
+  quoteId         String?
+  exchangeRate    Float
+  items           InvoiceItem[]
+  subtotalUsd     Float
+  discountPercent Float         @default(0)
+  discountUsd     Float         @default(0)
+  taxRate         Float         @default(0)
+  taxAmountUsd    Float         @default(0)
+  totalUsd        Float
+  status          String        @default("draft")
+  paymentTerms    String        @default("CASH/BANK")
+  dueDate         DateTime?
+  paidDate        DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model InvoiceItem {
+  id           String         @id @default(cuid())
+  invoice      Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId    String
+  variant      ProductVariant @relation(fields: [variantId], references: [id])
+  variantId    String
+  quantity     Int
+  unitPriceUsd Float
+  createdAt    DateTime       @default(now())
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

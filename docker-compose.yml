@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  kaylaash:
+    build: .
+    container_name: kaylaash
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/app/data/prod.db
+      AUTH_SECRET: ${AUTH_SECRET:-change-this-secret-in-production-min-32-chars}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      DEFAULT_EXCHANGE_RATE: ${DEFAULT_EXCHANGE_RATE:-35.5}
+      VIRTUAL_HOST: kay.powermental.fit
+      VIRTUAL_PORT: 3000
+    volumes:
+      - kaylaash-data:/app/data
+    expose:
+      - "3000"
+    restart: unless-stopped
+    networks:
+      - proxy-network
+
+volumes:
+  kaylaash-data:
+
+networks:
+  proxy-network:
+    external: true
+    name: usdt-exchange_default

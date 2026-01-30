@@ -1,0 +1,52 @@
+import { prisma } from "@/lib/prisma";
+import { InvoiceForm } from "../invoice-form";
+
+export const dynamic = "force-dynamic";
+
+async function getCustomers() {
+  return prisma.customer.findMany({
+    orderBy: { name: "asc" },
+  });
+}
+
+async function getProductVariants() {
+  return prisma.productVariant.findMany({
+    orderBy: [
+      { product: { brand: { name: "asc" } } },
+      { product: { name: "asc" } },
+      { literVariation: { sizeInLiters: "asc" } },
+    ],
+    include: {
+      product: {
+        include: { brand: true },
+      },
+      literVariation: true,
+    },
+  });
+}
+
+async function getExchangeRate() {
+  const rate = await prisma.exchangeRate.findFirst({
+    where: { isCurrent: true },
+  });
+  return rate?.rateUsdToSrd ?? 0;
+}
+
+export default async function NewInvoicePage() {
+  const [customers, variants, exchangeRate] = await Promise.all([
+    getCustomers(),
+    getProductVariants(),
+    getExchangeRate(),
+  ]);
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Create New Invoice</h1>
+      <InvoiceForm
+        customers={customers}
+        variants={variants}
+        exchangeRate={exchangeRate}
+      />
+    </div>
+  );
+}
