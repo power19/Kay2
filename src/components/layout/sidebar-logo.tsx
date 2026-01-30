@@ -16,7 +16,7 @@ export function SidebarLogo() {
     fetch("/api/company")
       .then((res) => res.json())
       .then((data) => setCompany(data))
-      .catch(() => setCompany({ name: "Omenbij", logo: null }));
+      .catch(() => setCompany({ name: "InvMan", logo: null }));
   }, []);
 
   if (!company) {

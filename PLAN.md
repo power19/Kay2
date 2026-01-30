@@ -1,4 +1,4 @@
-# Omenbij Electronics Inventory Management Application - Implementation Plan
+# InvMan Electronics Inventory Management Application - Implementation Plan
 
 ## Overview
 
@@ -322,7 +322,7 @@ model Setting {
 ## 4. File/Folder Structure
 
 ```
-omenbij/
+invman/
 ├── .env.example
 ├── docker-compose.yml
 ├── Dockerfile

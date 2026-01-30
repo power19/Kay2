@@ -9,7 +9,7 @@ export async function GET() {
     if (!company) {
       company = await prisma.companyInfo.create({
         data: {
-          name: "Omenbij",
+          name: "InvMan",
           address: "",
           phone: "",
         },

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     } else {
       company = await prisma.companyInfo.create({
         data: {
-          name: "Omenbij",
+          name: "InvMan",
           logo: dataUrl,
         },
       });
