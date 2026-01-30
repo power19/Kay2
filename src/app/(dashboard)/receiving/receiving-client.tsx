@@ -296,12 +296,12 @@ export function ReceivingClient({
             {/* Default location for new scans */}
             <div className="flex items-center gap-2 border-t pt-4">
               <Label className="text-sm whitespace-nowrap">Default location for new items:</Label>
-              <Select value={defaultLocationId} onValueChange={setDefaultLocationId}>
+              <Select value={defaultLocationId || "none"} onValueChange={(v) => setDefaultLocationId(v === "none" ? "" : v)}>
                 <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Select default location" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No default</SelectItem>
+                  <SelectItem value="none">No default</SelectItem>
                   {storageLocations.length > 0 && (
                     <>
                       <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Storage</div>
