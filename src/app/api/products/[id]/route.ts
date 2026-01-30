@@ -13,10 +13,10 @@ export async function GET(
         brand: true,
         variants: {
           include: {
-            literVariation: true,
+            specification: true,
           },
           orderBy: {
-            literVariation: { sizeInLiters: "asc" },
+            specification: { sizeInLiters: "asc" },
           },
         },
       },
@@ -70,7 +70,7 @@ export async function PUT(
         brand: true,
         variants: {
           include: {
-            literVariation: true,
+            specification: true,
           },
         },
       },

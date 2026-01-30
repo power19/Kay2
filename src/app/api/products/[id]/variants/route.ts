@@ -8,11 +8,11 @@ export async function POST(
   try {
     const { id: productId } = await params;
     const body = await request.json();
-    const { literVariationId, costPriceUsd, priceUsd, sku, barcode, stockQuantity, lowStockThreshold } = body;
+    const { specificationId, costPriceUsd, priceUsd, sku, barcode, stockQuantity, lowStockThreshold } = body;
 
-    if (!literVariationId) {
+    if (!specificationId) {
       return NextResponse.json(
-        { error: "Liter variation is required" },
+        { error: "Specification is required" },
         { status: 400 }
       );
     }
@@ -27,7 +27,7 @@ export async function POST(
     const variant = await prisma.productVariant.create({
       data: {
         productId,
-        literVariationId,
+        specificationId,
         costPriceUsd: costPriceUsd || 0,
         priceUsd,
         sku: sku || null,
@@ -36,7 +36,7 @@ export async function POST(
         lowStockThreshold: lowStockThreshold || 10,
       },
       include: {
-        literVariation: true,
+        specification: true,
         product: {
           include: { brand: true },
         },
@@ -53,7 +53,7 @@ export async function POST(
       error.code === "P2002"
     ) {
       return NextResponse.json(
-        { error: "This product already has a variant with this liter size" },
+        { error: "This product already has a variant with this specification" },
         { status: 400 }
       );
     }
@@ -96,7 +96,7 @@ export async function PUT(
         lowStockThreshold: lowStockThreshold || 10,
       },
       include: {
-        literVariation: true,
+        specification: true,
       },
     });
 

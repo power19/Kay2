@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, DollarSign, Ruler } from "lucide-react";
+import { Building2, DollarSign, Settings2 } from "lucide-react";
 
 export default function SettingsPage() {
   return (
@@ -45,16 +45,16 @@ export default function SettingsPage() {
           </Card>
         </Link>
 
-        <Link href="/settings/liter-variations">
+        <Link href="/settings/specifications">
           <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center space-y-0 gap-4">
               <div className="p-2 bg-green-100 rounded-lg">
-                <Ruler className="h-6 w-6 text-green-600" />
+                <Settings2 className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <CardTitle className="text-lg">Liter Variations</CardTitle>
+                <CardTitle className="text-lg">Specifications</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Configure product container sizes
+                  Configure product variants (storage, color, etc.)
                 </p>
               </div>
             </CardHeader>

@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
-type LiterVariation = {
+type Specification = {
   id: string;
   sizeInLiters: number;
   label: string;
@@ -33,15 +33,15 @@ type LiterVariation = {
   };
 };
 
-export function LiterVariationsClient({
+export function SpecificationsClient({
   initialVariations,
 }: {
-  initialVariations: LiterVariation[];
+  initialVariations: Specification[];
 }) {
   const [variations, setVariations] = useState(initialVariations);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingVariation, setEditingVariation] =
-    useState<LiterVariation | null>(null);
+    useState<Specification | null>(null);
   const [formData, setFormData] = useState({
     sizeInLiters: "",
     label: "",
@@ -154,7 +154,7 @@ export function LiterVariationsClient({
     }
   };
 
-  const handleDelete = async (variation: LiterVariation) => {
+  const handleDelete = async (variation: Specification) => {
     if (variation._count.productVariants > 0) {
       toast.error(
         `Cannot delete "${variation.label}". It's used by ${variation._count.productVariants} product variant(s).`
@@ -185,7 +185,7 @@ export function LiterVariationsClient({
     }
   };
 
-  const openEditDialog = (variation: LiterVariation) => {
+  const openEditDialog = (variation: Specification) => {
     setEditingVariation(variation);
     setFormData({
       sizeInLiters: variation.sizeInLiters.toString(),

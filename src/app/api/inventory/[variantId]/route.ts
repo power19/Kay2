@@ -53,7 +53,7 @@ export async function POST(
           product: {
             include: { brand: true },
           },
-          literVariation: true,
+          specification: true,
         },
       }),
       prisma.stockMovement.create({

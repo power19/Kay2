@@ -8,7 +8,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { sizeInLiters, label, isDrum } = body;
+    const { value, label, sortOrder } = body;
 
     if (!label || typeof label !== "string" || label.trim() === "") {
       return NextResponse.json(
@@ -17,25 +17,18 @@ export async function PUT(
       );
     }
 
-    if (typeof sizeInLiters !== "number" || sizeInLiters <= 0) {
-      return NextResponse.json(
-        { error: "Size in liters must be a positive number" },
-        { status: 400 }
-      );
-    }
-
-    const variation = await prisma.specification.update({
+    const specification = await prisma.specification.update({
       where: { id },
       data: {
-        sizeInLiters,
+        value: value || "",
         label: label.trim(),
-        isDrum: isDrum || false,
+        sortOrder: sortOrder || 0,
       },
     });
 
-    return NextResponse.json(variation);
+    return NextResponse.json(specification);
   } catch (error: unknown) {
-    console.error("Error updating liter variation:", error);
+    console.error("Error updating specification:", error);
     if (
       error &&
       typeof error === "object" &&
@@ -43,7 +36,7 @@ export async function PUT(
       error.code === "P2002"
     ) {
       return NextResponse.json(
-        { error: "A liter variation with this label already exists" },
+        { error: "A specification with this label already exists" },
         { status: 400 }
       );
     }
@@ -54,12 +47,12 @@ export async function PUT(
       error.code === "P2025"
     ) {
       return NextResponse.json(
-        { error: "Liter variation not found" },
+        { error: "Specification not found" },
         { status: 404 }
       );
     }
     return NextResponse.json(
-      { error: "Failed to update liter variation" },
+      { error: "Failed to update specification" },
       { status: 500 }
     );
   }
@@ -72,14 +65,14 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Check if any product variants use this liter variation
+    // Check if any product variants use this specification
     const usageCount = await prisma.productVariant.count({
       where: { specificationId: id },
     });
 
     if (usageCount > 0) {
       return NextResponse.json(
-        { error: `Cannot delete. This liter size is used by ${usageCount} product variant(s).` },
+        { error: `Cannot delete. This specification is used by ${usageCount} product variant(s).` },
         { status: 400 }
       );
     }
@@ -90,7 +83,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error("Error deleting liter variation:", error);
+    console.error("Error deleting specification:", error);
     if (
       error &&
       typeof error === "object" &&
@@ -98,12 +91,12 @@ export async function DELETE(
       error.code === "P2025"
     ) {
       return NextResponse.json(
-        { error: "Liter variation not found" },
+        { error: "Specification not found" },
         { status: 404 }
       );
     }
     return NextResponse.json(
-      { error: "Failed to delete liter variation" },
+      { error: "Failed to delete specification" },
       { status: 500 }
     );
   }

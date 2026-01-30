@@ -32,12 +32,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
-import { formatUsd, formatSrd, convertUsdToSrd } from "@/lib/currency";
+import { formatUsd } from "@/lib/currency";
 
-type LiterVariation = {
+type Specification = {
   id: string;
   label: string;
-  sizeInLiters: number;
+  value: string;
 };
 
 type ProductVariant = {
@@ -48,7 +48,7 @@ type ProductVariant = {
   barcode: string | null;
   stockQuantity: number;
   lowStockThreshold: number;
-  literVariation: LiterVariation;
+  specification: Specification;
 };
 
 type Product = {
@@ -61,11 +61,11 @@ type Product = {
 
 export function ProductDetailClient({
   product,
-  literVariations,
+  specifications,
   exchangeRate,
 }: {
   product: Product;
-  literVariations: LiterVariation[];
+  specifications: Specification[];
   exchangeRate: number;
 }) {
   const router = useRouter();
@@ -74,7 +74,7 @@ export function ProductDetailClient({
     null
   );
   const [formData, setFormData] = useState({
-    literVariationId: "",
+    specificationId: "",
     costPriceUsd: "",
     priceUsd: "",
     sku: "",
@@ -83,14 +83,14 @@ export function ProductDetailClient({
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get liter variations that are not already used
-  const availableLiterVariations = literVariations.filter(
-    (lv) => !product.variants.some((v) => v.literVariation.id === lv.id)
+  // Get specifications that are not already used
+  const availableSpecifications = specifications.filter(
+    (spec) => !product.variants.some((v) => v.specification.id === spec.id)
   );
 
   const resetForm = () => {
     setFormData({
-      literVariationId: "",
+      specificationId: "",
       costPriceUsd: "",
       priceUsd: "",
       sku: "",
@@ -101,8 +101,8 @@ export function ProductDetailClient({
   };
 
   const handleAddVariant = async () => {
-    if (!formData.literVariationId) {
-      toast.error("Liter size is required");
+    if (!formData.specificationId) {
+      toast.error("Specification is required");
       return;
     }
     const price = parseFloat(formData.priceUsd);
@@ -119,7 +119,7 @@ export function ProductDetailClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          literVariationId: formData.literVariationId,
+          specificationId: formData.specificationId,
           costPriceUsd: costPrice,
           priceUsd: price,
           sku: formData.sku || null,
@@ -198,7 +198,7 @@ export function ProductDetailClient({
 
     if (
       !confirm(
-        `Are you sure you want to delete the ${variant.literVariation.label} variant?`
+        `Are you sure you want to delete the ${variant.specification.label} variant?`
       )
     ) {
       return;
@@ -229,7 +229,7 @@ export function ProductDetailClient({
   const openEditDialog = (variant: ProductVariant) => {
     setEditingVariant(variant);
     setFormData({
-      literVariationId: variant.literVariation.id,
+      specificationId: variant.specification.id,
       costPriceUsd: variant.costPriceUsd.toString(),
       priceUsd: variant.priceUsd.toString(),
       sku: variant.sku || "",
@@ -264,7 +264,7 @@ export function ProductDetailClient({
             <DialogTrigger asChild>
               <Button
                 onClick={() => resetForm()}
-                disabled={availableLiterVariations.length === 0}
+                disabled={availableSpecifications.length === 0}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Variant
@@ -276,20 +276,20 @@ export function ProductDetailClient({
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="literVariation">Liter Size *</Label>
+                  <Label htmlFor="specification">Specification *</Label>
                   <Select
-                    value={formData.literVariationId}
+                    value={formData.specificationId}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, literVariationId: value })
+                      setFormData({ ...formData, specificationId: value })
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select size" />
+                      <SelectValue placeholder="Select specification" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableLiterVariations.map((lv) => (
-                        <SelectItem key={lv.id} value={lv.id}>
-                          {lv.label}
+                      {availableSpecifications.map((spec) => (
+                        <SelectItem key={spec.id} value={spec.id}>
+                          {spec.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -331,7 +331,7 @@ export function ProductDetailClient({
                     onChange={(e) =>
                       setFormData({ ...formData, sku: e.target.value })
                     }
-                    placeholder="e.g., SHELL-5W30-5L"
+                    placeholder="e.g., IPHONE-15-128GB"
                   />
                 </div>
                 <div className="space-y-2">
@@ -380,7 +380,7 @@ export function ProductDetailClient({
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  Edit {editingVariant?.literVariation.label} Variant
+                  Edit {editingVariant?.specification.label} Variant
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -460,11 +460,11 @@ export function ProductDetailClient({
 
           {product.variants.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {availableLiterVariations.length === 0 ? (
+              {availableSpecifications.length === 0 ? (
                 <div>
-                  <p>No liter sizes available.</p>
-                  <Link href="/settings/liter-variations">
-                    <Button variant="link">Add liter sizes first</Button>
+                  <p>No specifications available.</p>
+                  <Link href="/settings/specifications">
+                    <Button variant="link">Add specifications first</Button>
                   </Link>
                 </div>
               ) : (
@@ -475,7 +475,7 @@ export function ProductDetailClient({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Size</TableHead>
+                  <TableHead>Specification</TableHead>
                   <TableHead>Cost (USD)</TableHead>
                   <TableHead>Sell (USD)</TableHead>
                   <TableHead>Margin</TableHead>
@@ -495,7 +495,7 @@ export function ProductDetailClient({
                   return (
                     <TableRow key={variant.id}>
                       <TableCell className="font-medium">
-                        {variant.literVariation.label}
+                        {variant.specification.label}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {variant.costPriceUsd > 0 ? formatUsd(variant.costPriceUsd) : "-"}

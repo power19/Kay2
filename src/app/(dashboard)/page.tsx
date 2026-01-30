@@ -19,7 +19,7 @@ async function getStats() {
     prisma.productVariant.findMany({
       include: {
         product: { include: { brand: true } },
-        literVariation: true,
+        specification: true,
       },
     }),
     prisma.invoice.findMany({
@@ -119,7 +119,7 @@ export default async function DashboardPage() {
                         {item.product.brand.name} - {item.product.name}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {item.literVariation.label}
+                        {item.specification.label}
                       </p>
                     </div>
                     <div className="text-right">

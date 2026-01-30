@@ -10,10 +10,10 @@ async function getProducts() {
       brand: true,
       variants: {
         include: {
-          literVariation: true,
+          specification: true,
         },
         orderBy: {
-          literVariation: { sizeInLiters: "asc" },
+          specification: { sortOrder: "asc" },
         },
       },
     },
@@ -26,17 +26,17 @@ async function getBrands() {
   });
 }
 
-async function getLiterVariations() {
-  return prisma.literVariation.findMany({
-    orderBy: { sizeInLiters: "asc" },
+async function getSpecifications() {
+  return prisma.specification.findMany({
+    orderBy: { sortOrder: "asc" },
   });
 }
 
 export default async function ProductsPage() {
-  const [products, brands, literVariations] = await Promise.all([
+  const [products, brands, specifications] = await Promise.all([
     getProducts(),
     getBrands(),
-    getLiterVariations(),
+    getSpecifications(),
   ]);
 
   return (
@@ -47,7 +47,7 @@ export default async function ProductsPage() {
       <ProductsClient
         initialProducts={products}
         brands={brands}
-        literVariations={literVariations}
+        specifications={specifications}
       />
     </div>
   );

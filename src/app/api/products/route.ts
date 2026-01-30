@@ -9,7 +9,7 @@ export async function GET() {
         brand: true,
         variants: {
           include: {
-            literVariation: true,
+            specification: true,
           },
         },
       },
@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
         variants: variants?.length
           ? {
               create: variants.map(
-                (v: { literVariationId: string; priceUsd: number; sku?: string }) => ({
-                  literVariationId: v.literVariationId,
+                (v: { specificationId: string; priceUsd: number; sku?: string }) => ({
+                  specificationId: v.specificationId,
                   priceUsd: v.priceUsd,
                   sku: v.sku || null,
                   stockQuantity: 0,
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         brand: true,
         variants: {
           include: {
-            literVariation: true,
+            specification: true,
           },
         },
       },

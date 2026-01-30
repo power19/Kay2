@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
             brand: true,
           },
         },
-        literVariation: true,
+        specification: true,
       },
     });
 
@@ -55,10 +55,10 @@ export async function GET(request: NextRequest) {
           name: variant.product.brand.name,
         },
       },
-      literVariation: {
-        id: variant.literVariation.id,
-        label: variant.literVariation.label,
-        sizeInLiters: variant.literVariation.sizeInLiters,
+      specification: {
+        id: variant.specification.id,
+        label: variant.specification.label,
+        value: variant.specification.value,
       },
     });
   } catch (error) {

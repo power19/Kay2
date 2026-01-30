@@ -16,11 +16,11 @@ model Brand {
   updatedAt   DateTime  @updatedAt
 }
 
-model LiterVariation {
+model Specification {
   id              String           @id @default(cuid())
-  sizeInLiters    Float
+  value           String
   label           String           @unique
-  isDrum          Boolean          @default(false)
+  sortOrder       Int              @default(0)
   productVariants ProductVariant[]
   createdAt       DateTime         @default(now())
 }
@@ -42,8 +42,8 @@ model ProductVariant {
   id                String          @id @default(cuid())
   product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId         String
-  literVariation    LiterVariation  @relation(fields: [literVariationId], references: [id])
-  literVariationId  String
+  specification     Specification   @relation(fields: [specificationId], references: [id])
+  specificationId   String
   costPriceUsd      Float           @default(0)
   priceUsd          Float
   sku               String?         @unique
@@ -56,7 +56,7 @@ model ProductVariant {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  @@unique([productId, literVariationId])
+  @@unique([productId, specificationId])
 }
 
 model StockMovement {

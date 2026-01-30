@@ -68,7 +68,7 @@ export async function POST(
             variant: {
               include: {
                 product: { include: { brand: true } },
-                literVariation: true,
+                specification: true,
               },
             },
           },

@@ -14,13 +14,13 @@ async function getProductVariants() {
     orderBy: [
       { product: { brand: { name: "asc" } } },
       { product: { name: "asc" } },
-      { literVariation: { sizeInLiters: "asc" } },
+      { specification: { sortOrder: "asc" } },
     ],
     include: {
       product: {
         include: { brand: true },
       },
-      literVariation: true,
+      specification: true,
     },
   });
 }

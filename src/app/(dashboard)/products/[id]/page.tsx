@@ -9,19 +9,19 @@ async function getProduct(id: string) {
       brand: true,
       variants: {
         include: {
-          literVariation: true,
+          specification: true,
         },
         orderBy: {
-          literVariation: { sizeInLiters: "asc" },
+          specification: { sortOrder: "asc" },
         },
       },
     },
   });
 }
 
-async function getLiterVariations() {
-  return prisma.literVariation.findMany({
-    orderBy: { sizeInLiters: "asc" },
+async function getSpecifications() {
+  return prisma.specification.findMany({
+    orderBy: { sortOrder: "asc" },
   });
 }
 
@@ -38,9 +38,9 @@ export default async function ProductDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [product, literVariations, exchangeRate] = await Promise.all([
+  const [product, specifications, exchangeRate] = await Promise.all([
     getProduct(id),
-    getLiterVariations(),
+    getSpecifications(),
     getExchangeRate(),
   ]);
 
@@ -52,7 +52,7 @@ export default async function ProductDetailPage({
     <div className="space-y-6">
       <ProductDetailClient
         product={product}
-        literVariations={literVariations}
+        specifications={specifications}
         exchangeRate={exchangeRate}
       />
     </div>

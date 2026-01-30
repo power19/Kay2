@@ -17,7 +17,7 @@ async function getQuote(id: string) {
           variant: {
             include: {
               product: { include: { brand: true } },
-              literVariation: true,
+              specification: true,
             },
           },
         },
@@ -178,7 +178,7 @@ export default async function QuoteDetailPage({
               return (
                 <tr key={item.id} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                   <td className="px-3 py-2 border-b border-gray-200">
-                    {item.variant.product.brand.name} - {item.variant.product.name} ({item.variant.literVariation.label})
+                    {item.variant.product.brand.name} - {item.variant.product.name} ({item.variant.specification.label})
                   </td>
                   <td className="px-3 py-2 text-center border-b border-gray-200">
                     {item.quantity}

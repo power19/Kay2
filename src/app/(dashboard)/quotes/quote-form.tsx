@@ -42,7 +42,7 @@ type Variant = {
     name: string;
     brand: { name: string };
   };
-  literVariation: {
+  specification: {
     label: string;
   };
 };
@@ -322,7 +322,7 @@ export function QuoteForm({
                   <SelectContent position="popper" sideOffset={4}>
                     {availableVariants.map((variant) => (
                       <SelectItem key={variant.id} value={variant.id}>
-                        {variant.product.brand.name} - {variant.product.name} ({variant.literVariation.label}) - {formatUsd(variant.priceUsd)}
+                        {variant.product.brand.name} - {variant.product.name} ({variant.specification.label}) - {formatUsd(variant.priceUsd)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -358,7 +358,7 @@ export function QuoteForm({
                             {item.variant.product.name}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.variant.literVariation.label}
+                            {item.variant.specification.label}
                           </p>
                         </div>
                       </TableCell>

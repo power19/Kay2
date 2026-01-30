@@ -50,10 +50,10 @@ type Variant = {
       name: string;
     };
   };
-  literVariation: {
+  specification: {
     id: string;
     label: string;
-    sizeInLiters: number;
+    value: string;
   };
 };
 
@@ -278,7 +278,7 @@ export function InventoryClient({
                   {adjustingVariant.product.name}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {adjustingVariant.literVariation.label} | Current Stock:{" "}
+                  {adjustingVariant.specification.label} | Current Stock:{" "}
                   {adjustingVariant.stockQuantity}
                 </p>
               </div>
@@ -375,7 +375,7 @@ export function InventoryClient({
             <TableHeader>
               <TableRow>
                 <TableHead>Product</TableHead>
-                <TableHead>Size</TableHead>
+                <TableHead>Spec</TableHead>
                 <TableHead>Barcode</TableHead>
                 <TableHead>Cost</TableHead>
                 <TableHead>Sell</TableHead>
@@ -403,7 +403,7 @@ export function InventoryClient({
                         <p className="font-medium">{variant.product.name}</p>
                       </div>
                     </TableCell>
-                    <TableCell>{variant.literVariation.label}</TableCell>
+                    <TableCell>{variant.specification.label}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {variant.barcode || variant.sku || "-"}
                     </TableCell>

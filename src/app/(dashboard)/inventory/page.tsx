@@ -8,7 +8,7 @@ async function getInventory() {
     orderBy: [
       { product: { brand: { name: "asc" } } },
       { product: { name: "asc" } },
-      { literVariation: { sizeInLiters: "asc" } },
+      { specification: { sortOrder: "asc" } },
     ],
     include: {
       product: {
@@ -16,7 +16,7 @@ async function getInventory() {
           brand: true,
         },
       },
-      literVariation: true,
+      specification: true,
     },
   });
 }

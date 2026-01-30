@@ -7,7 +7,7 @@ export async function GET() {
       orderBy: [
         { product: { brand: { name: "asc" } } },
         { product: { name: "asc" } },
-        { literVariation: { sizeInLiters: "asc" } },
+        { specification: { sizeInLiters: "asc" } },
       ],
       include: {
         product: {
@@ -15,7 +15,7 @@ export async function GET() {
             brand: true,
           },
         },
-        literVariation: true,
+        specification: true,
       },
     });
     return NextResponse.json(variants);

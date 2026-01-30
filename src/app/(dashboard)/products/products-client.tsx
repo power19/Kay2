@@ -37,7 +37,7 @@ type Brand = {
   name: string;
 };
 
-type LiterVariation = {
+type Specification = {
   id: string;
   label: string;
   sizeInLiters: number;
@@ -47,7 +47,7 @@ type ProductVariant = {
   id: string;
   priceUsd: number;
   stockQuantity: number;
-  literVariation: LiterVariation;
+  specification: Specification;
 };
 
 type Product = {
@@ -61,11 +61,11 @@ type Product = {
 export function ProductsClient({
   initialProducts,
   brands,
-  literVariations,
+  specifications,
 }: {
   initialProducts: Product[];
   brands: Brand[];
-  literVariations: LiterVariation[];
+  specifications: Specification[];
 }) {
   const [products, setProducts] = useState(initialProducts);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -415,7 +415,7 @@ export function ProductsClient({
                           <div className="flex flex-wrap gap-1">
                             {product.variants.map((v) => (
                               <Badge key={v.id} variant="secondary">
-                                {v.literVariation.label}
+                                {v.specification.label}
                               </Badge>
                             ))}
                           </div>

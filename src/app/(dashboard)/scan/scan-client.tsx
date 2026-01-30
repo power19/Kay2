@@ -45,10 +45,10 @@ type ScannedProduct = {
       name: string;
     };
   };
-  literVariation: {
+  specification: {
     id: string;
     label: string;
-    sizeInLiters: number;
+    value: string;
   };
 };
 
@@ -288,7 +288,7 @@ export function ScanClient() {
                 {scannedProduct.product.name}
               </h3>
               <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
-                <span>{scannedProduct.literVariation.label}</span>
+                <span>{scannedProduct.specification.label}</span>
                 <span>•</span>
                 <span>{formatUsd(scannedProduct.priceUsd)}</span>
                 {scannedProduct.barcode && (
@@ -428,7 +428,7 @@ export function ScanClient() {
                     </span>
                     <span className="text-muted-foreground">
                       {" "}
-                      ({item.product.literVariation.label})
+                      ({item.product.specification.label})
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

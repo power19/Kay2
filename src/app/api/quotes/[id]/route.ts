@@ -16,7 +16,7 @@ export async function GET(
             variant: {
               include: {
                 product: { include: { brand: true } },
-                literVariation: true,
+                specification: true,
               },
             },
           },
@@ -94,7 +94,7 @@ export async function PUT(
             variant: {
               include: {
                 product: { include: { brand: true } },
-                literVariation: true,
+                specification: true,
               },
             },
           },

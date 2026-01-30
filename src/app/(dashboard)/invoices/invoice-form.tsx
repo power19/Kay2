@@ -42,7 +42,7 @@ type Variant = {
     name: string;
     brand: { name: string };
   };
-  literVariation: {
+  specification: {
     label: string;
   };
 };
@@ -333,7 +333,7 @@ export function InvoiceForm({
                   <SelectContent position="popper" sideOffset={4}>
                     {availableVariants.map((variant) => (
                       <SelectItem key={variant.id} value={variant.id}>
-                        {variant.product.brand.name} - {variant.product.name} ({variant.literVariation.label}) - {formatUsd(variant.priceUsd)} (Stock: {variant.stockQuantity})
+                        {variant.product.brand.name} - {variant.product.name} ({variant.specification.label}) - {formatUsd(variant.priceUsd)} (Stock: {variant.stockQuantity})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -369,7 +369,7 @@ export function InvoiceForm({
                             {item.variant.product.name}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.variant.literVariation.label} (Stock: {item.variant.stockQuantity})
+                            {item.variant.specification.label} (Stock: {item.variant.stockQuantity})
                           </p>
                         </div>
                       </TableCell>
