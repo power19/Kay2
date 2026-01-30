@@ -39,35 +39,66 @@ model Product {
 }
 
 model ProductVariant {
-  id                String          @id @default(cuid())
-  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id                String            @id @default(cuid())
+  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId         String
-  specification     Specification   @relation(fields: [specificationId], references: [id])
+  specification     Specification     @relation(fields: [specificationId], references: [id])
   specificationId   String
-  costPriceUsd      Float           @default(0)
+  costPriceUsd      Float             @default(0)
   priceUsd          Float
-  sku               String?         @unique
-  barcode           String?         @unique
-  stockQuantity     Int             @default(0)
-  lowStockThreshold Int             @default(10)
+  sku               String?           @unique
+  barcode           String?           @unique
+  stockQuantity     Int               @default(0)
+  lowStockThreshold Int               @default(10)
   quoteItems        QuoteItem[]
   invoiceItems      InvoiceItem[]
   stockMovements    StockMovement[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  locationStock     VariantLocation[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@unique([productId, specificationId])
 }
 
+model StorageLocation {
+  id                 String            @id @default(cuid())
+  name               String            @unique // e.g., "Rack A1", "Rack B2", "Display"
+  type               String            @default("storage") // "storage" or "display"
+  description        String?
+  sortOrder          Int               @default(0)
+  variantStock       VariantLocation[]
+  movementsFrom      StockMovement[]   @relation("FromLocation")
+  movementsTo        StockMovement[]   @relation("ToLocation")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model VariantLocation {
+  id          String          @id @default(cuid())
+  variant     ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  variantId   String
+  location    StorageLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  locationId  String
+  quantity    Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([variantId, locationId])
+}
+
 model StockMovement {
-  id             String         @id @default(cuid())
-  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  id             String          @id @default(cuid())
+  variant        ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
   variantId      String
+  fromLocation   StorageLocation? @relation("FromLocation", fields: [fromLocationId], references: [id])
+  fromLocationId String?
+  toLocation     StorageLocation? @relation("ToLocation", fields: [toLocationId], references: [id])
+  toLocationId   String?
   quantityChange Int
-  type           String
+  type           String          // "purchase", "sale", "adjustment", "return", "transfer"
   reference      String?
   notes          String?
-  createdAt      DateTime       @default(now())
+  createdAt      DateTime        @default(now())
 }
 
 model Customer {

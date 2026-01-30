@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, DollarSign, Settings2 } from "lucide-react";
+import { Building2, DollarSign, Settings2, Warehouse } from "lucide-react";
 
 export default function SettingsPage() {
   return (
@@ -55,6 +55,22 @@ export default function SettingsPage() {
                 <CardTitle className="text-lg">Specifications</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Configure product variants (storage, color, etc.)
+                </p>
+              </div>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/settings/locations">
+          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center space-y-0 gap-4">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Warehouse className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Storage Locations</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Manage racks, shelves, and display areas
                 </p>
               </div>
             </CardHeader>

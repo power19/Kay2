@@ -26,12 +26,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Minus, AlertTriangle, ScanBarcode, TrendingUp, DollarSign, Package } from "lucide-react";
-import { formatUsd, formatSrd, convertUsdToSrd } from "@/lib/currency";
+import { Plus, Minus, AlertTriangle, ScanBarcode, TrendingUp, DollarSign, Package, ChevronDown, Warehouse, Store, ArrowRight } from "lucide-react";
+import { formatUsd } from "@/lib/currency";
 import { BarcodeScanner } from "@/components/shared/barcode-scanner";
 import { Card, CardContent } from "@/components/ui/card";
+
+type LocationStock = {
+  id: string;
+  quantity: number;
+  location: {
+    id: string;
+    name: string;
+    type: string;
+  };
+};
 
 type Variant = {
   id: string;
@@ -55,29 +70,49 @@ type Variant = {
     label: string;
     value: string;
   };
+  locationStock: LocationStock[];
+};
+
+type Location = {
+  id: string;
+  name: string;
+  type: string;
 };
 
 export function InventoryClient({
   inventory,
   exchangeRate,
+  locations,
 }: {
   inventory: Variant[];
   exchangeRate: number;
+  locations: Location[];
 }) {
   const router = useRouter();
-  const [adjustingVariant, setAdjustingVariant] = useState<Variant | null>(
-    null
-  );
-  const [adjustmentType, setAdjustmentType] = useState<"add" | "remove">("add");
+  const [adjustingVariant, setAdjustingVariant] = useState<Variant | null>(null);
+  const [adjustmentType, setAdjustmentType] = useState<"add" | "remove" | "transfer">("add");
   const [formData, setFormData] = useState({
     quantity: "",
     type: "adjustment",
     reference: "",
     notes: "",
+    locationId: "",
+    toLocationId: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [filterLowStock, setFilterLowStock] = useState(false);
   const [scannerLoading, setScannerLoading] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleRowExpanded = (id: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedRows(newExpanded);
+  };
 
   // Handle barcode scan
   const handleBarcodeScan = async (barcode: string) => {
@@ -91,7 +126,6 @@ export function InventoryClient({
         return;
       }
 
-      // Find the variant in our inventory list
       const variant = inventory.find((v) => v.id === data.id);
       if (variant) {
         openAdjustDialog(variant, "add");
@@ -120,12 +154,26 @@ export function InventoryClient({
   const totalSellValue = inventory.reduce((sum, v) => sum + (v.priceUsd * v.stockQuantity), 0);
   const totalPotentialProfit = totalSellValue - totalCostValue;
 
+  // Calculate storage vs display totals
+  const storageTotal = inventory.reduce((sum, v) => {
+    return sum + v.locationStock
+      .filter((ls) => ls.location.type === "storage")
+      .reduce((s, ls) => s + ls.quantity, 0);
+  }, 0);
+  const displayTotal = inventory.reduce((sum, v) => {
+    return sum + v.locationStock
+      .filter((ls) => ls.location.type === "display")
+      .reduce((s, ls) => s + ls.quantity, 0);
+  }, 0);
+
   const resetForm = () => {
     setFormData({
       quantity: "",
       type: "adjustment",
       reference: "",
       notes: "",
+      locationId: "",
+      toLocationId: "",
     });
     setAdjustingVariant(null);
   };
@@ -139,12 +187,26 @@ export function InventoryClient({
       return;
     }
 
-    const quantityChange = adjustmentType === "add" ? qty : -qty;
-    const newQuantity = adjustingVariant.stockQuantity + quantityChange;
+    // For transfer, validate both locations are selected
+    if (adjustmentType === "transfer") {
+      if (!formData.locationId || !formData.toLocationId) {
+        toast.error("Please select both source and destination locations");
+        return;
+      }
+      if (formData.locationId === formData.toLocationId) {
+        toast.error("Source and destination cannot be the same");
+        return;
+      }
+    }
 
-    if (newQuantity < 0) {
-      toast.error("Stock cannot be negative");
-      return;
+    const quantityChange = adjustmentType === "add" ? qty : -qty;
+
+    if (adjustmentType !== "transfer") {
+      const newQuantity = adjustingVariant.stockQuantity + quantityChange;
+      if (newQuantity < 0) {
+        toast.error("Stock cannot be negative");
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -153,10 +215,12 @@ export function InventoryClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          quantityChange,
-          type: formData.type,
+          quantityChange: adjustmentType === "transfer" ? qty : quantityChange,
+          type: adjustmentType === "transfer" ? "transfer" : formData.type,
           reference: formData.reference,
           notes: formData.notes,
+          locationId: formData.locationId || null,
+          toLocationId: adjustmentType === "transfer" ? formData.toLocationId : null,
         }),
       });
 
@@ -165,9 +229,11 @@ export function InventoryClient({
         throw new Error(data.error || "Failed to adjust stock");
       }
 
-      toast.success(
-        `Stock ${adjustmentType === "add" ? "added" : "removed"} successfully`
-      );
+      const message = adjustmentType === "transfer"
+        ? "Stock transferred successfully"
+        : `Stock ${adjustmentType === "add" ? "added" : "removed"} successfully`;
+
+      toast.success(message);
       resetForm();
       router.refresh();
     } catch (error) {
@@ -179,21 +245,23 @@ export function InventoryClient({
     }
   };
 
-  const openAdjustDialog = (variant: Variant, type: "add" | "remove") => {
+  const openAdjustDialog = (variant: Variant, type: "add" | "remove" | "transfer") => {
     setAdjustingVariant(variant);
     setAdjustmentType(type);
     setFormData({
       quantity: "",
-      type: type === "add" ? "purchase" : "sale",
+      type: type === "add" ? "purchase" : type === "remove" ? "sale" : "transfer",
       reference: "",
       notes: "",
+      locationId: "",
+      toLocationId: "",
     });
   };
 
   return (
     <div className="space-y-4">
       {/* Inventory Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
@@ -201,6 +269,24 @@ export function InventoryClient({
               <span className="text-sm text-muted-foreground">Total Items</span>
             </div>
             <p className="text-2xl font-bold">{totalItems}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-blue-50">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <Warehouse className="h-4 w-4 text-blue-600" />
+              <span className="text-sm text-blue-700">In Storage</span>
+            </div>
+            <p className="text-2xl font-bold text-blue-600">{storageTotal}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <Store className="h-4 w-4 text-green-600" />
+              <span className="text-sm text-green-700">On Display</span>
+            </div>
+            <p className="text-2xl font-bold text-green-600">{displayTotal}</p>
           </CardContent>
         </Card>
         <Card>
@@ -221,13 +307,13 @@ export function InventoryClient({
             <p className="text-2xl font-bold">{formatUsd(totalSellValue)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-green-50">
+        <Card className="bg-emerald-50">
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-green-700">Potential Profit</span>
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+              <span className="text-sm text-emerald-700">Profit</span>
             </div>
-            <p className="text-2xl font-bold text-green-600">{formatUsd(totalPotentialProfit)}</p>
+            <p className="text-2xl font-bold text-emerald-600">{formatUsd(totalPotentialProfit)}</p>
           </CardContent>
         </Card>
       </div>
@@ -260,6 +346,7 @@ export function InventoryClient({
         </Button>
       </div>
 
+      {/* Stock Adjustment Dialog */}
       <Dialog
         open={!!adjustingVariant}
         onOpenChange={(open) => !open && resetForm()}
@@ -267,7 +354,7 @@ export function InventoryClient({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {adjustmentType === "add" ? "Add Stock" : "Remove Stock"}
+              {adjustmentType === "add" ? "Add Stock" : adjustmentType === "remove" ? "Remove Stock" : "Transfer Stock"}
             </DialogTitle>
           </DialogHeader>
           {adjustingVariant && (
@@ -278,9 +365,18 @@ export function InventoryClient({
                   {adjustingVariant.product.name}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {adjustingVariant.specification.label} | Current Stock:{" "}
+                  {adjustingVariant.specification.label} | Total Stock:{" "}
                   {adjustingVariant.stockQuantity}
                 </p>
+                {adjustingVariant.locationStock.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {adjustingVariant.locationStock.map((ls) => (
+                      <Badge key={ls.id} variant="outline" className={ls.location.type === "storage" ? "bg-blue-50" : "bg-green-50"}>
+                        {ls.location.name}: {ls.quantity}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -297,33 +393,121 @@ export function InventoryClient({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="type">Reason</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {adjustmentType === "add" ? (
-                      <>
-                        <SelectItem value="purchase">Purchase</SelectItem>
-                        <SelectItem value="return">Return</SelectItem>
-                        <SelectItem value="adjustment">Adjustment</SelectItem>
-                      </>
-                    ) : (
-                      <>
-                        <SelectItem value="sale">Sale</SelectItem>
-                        <SelectItem value="adjustment">Adjustment</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+              {adjustmentType === "transfer" ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>From Location *</Label>
+                    <Select
+                      value={formData.locationId}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, locationId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select source location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {adjustingVariant.locationStock
+                          .filter((ls) => ls.quantity > 0)
+                          .map((ls) => (
+                            <SelectItem key={ls.location.id} value={ls.location.id}>
+                              {ls.location.name} ({ls.quantity} available)
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-center">
+                    <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>To Location *</Label>
+                    <Select
+                      value={formData.toLocationId}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, toLocationId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select destination location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {loc.name} ({loc.type})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Reason</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, type: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {adjustmentType === "add" ? (
+                          <>
+                            <SelectItem value="purchase">Purchase</SelectItem>
+                            <SelectItem value="return">Return</SelectItem>
+                            <SelectItem value="adjustment">Adjustment</SelectItem>
+                          </>
+                        ) : (
+                          <>
+                            <SelectItem value="sale">Sale</SelectItem>
+                            <SelectItem value="adjustment">Adjustment</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {locations.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Location (Optional)</Label>
+                      <Select
+                        value={formData.locationId}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, locationId: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No specific location</SelectItem>
+                          {adjustmentType === "remove" ? (
+                            // For removal, only show locations with stock
+                            adjustingVariant.locationStock
+                              .filter((ls) => ls.quantity > 0)
+                              .map((ls) => (
+                                <SelectItem key={ls.location.id} value={ls.location.id}>
+                                  {ls.location.name} ({ls.quantity} available)
+                                </SelectItem>
+                              ))
+                          ) : (
+                            // For addition, show all locations
+                            locations.map((loc) => (
+                              <SelectItem key={loc.id} value={loc.id}>
+                                {loc.name} ({loc.type})
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="reference">Reference (Optional)</Label>
@@ -358,7 +542,9 @@ export function InventoryClient({
                   ? "Processing..."
                   : adjustmentType === "add"
                   ? "Add Stock"
-                  : "Remove Stock"}
+                  : adjustmentType === "remove"
+                  ? "Remove Stock"
+                  : "Transfer Stock"}
               </Button>
             </div>
           )}
@@ -374,89 +560,146 @@ export function InventoryClient({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[30px]"></TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Spec</TableHead>
                 <TableHead>Barcode</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead>Sell</TableHead>
-                <TableHead>Margin</TableHead>
-                <TableHead className="text-center">Stock</TableHead>
+                <TableHead className="text-center">Storage</TableHead>
+                <TableHead className="text-center">Display</TableHead>
+                <TableHead className="text-center">Total</TableHead>
                 <TableHead>Value</TableHead>
-                <TableHead className="w-[120px]">Actions</TableHead>
+                <TableHead className="w-[150px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredInventory.map((variant) => {
-                const isLowStock =
-                  variant.stockQuantity <= variant.lowStockThreshold;
-                const margin = variant.costPriceUsd > 0
-                  ? ((variant.priceUsd - variant.costPriceUsd) / variant.costPriceUsd * 100).toFixed(0)
-                  : "-";
+                const isLowStock = variant.stockQuantity <= variant.lowStockThreshold;
                 const stockValue = variant.costPriceUsd * variant.stockQuantity;
+                const storageQty = variant.locationStock
+                  .filter((ls) => ls.location.type === "storage")
+                  .reduce((s, ls) => s + ls.quantity, 0);
+                const displayQty = variant.locationStock
+                  .filter((ls) => ls.location.type === "display")
+                  .reduce((s, ls) => s + ls.quantity, 0);
+                const hasLocationData = variant.locationStock.length > 0;
+
                 return (
-                  <TableRow key={variant.id}>
-                    <TableCell>
-                      <div>
-                        <Badge variant="outline" className="mb-1">
-                          {variant.product.brand.name}
-                        </Badge>
-                        <p className="font-medium">{variant.product.name}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{variant.specification.label}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {variant.barcode || variant.sku || "-"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatUsd(variant.costPriceUsd)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatUsd(variant.priceUsd)}
-                    </TableCell>
-                    <TableCell>
-                      {margin !== "-" ? (
-                        <span className={Number(margin) >= 20 ? "text-green-600 font-medium" : Number(margin) >= 10 ? "text-yellow-600" : "text-red-600"}>
-                          {margin}%
-                        </span>
-                      ) : "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span
-                        className={
-                          isLowStock
-                            ? "inline-flex items-center gap-1 text-orange-600 font-semibold"
-                            : ""
-                        }
-                      >
-                        {isLowStock && (
-                          <AlertTriangle className="h-4 w-4" />
-                        )}
-                        {variant.stockQuantity}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {formatUsd(stockValue)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openAdjustDialog(variant, "add")}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openAdjustDialog(variant, "remove")}
-                          disabled={variant.stockQuantity === 0}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <Collapsible key={variant.id} asChild>
+                    <>
+                      <TableRow className={isLowStock ? "bg-orange-50" : ""}>
+                        <TableCell>
+                          {hasLocationData && (
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleRowExpanded(variant.id)}
+                              >
+                                <ChevronDown
+                                  className={`h-4 w-4 transition-transform ${
+                                    expandedRows.has(variant.id) ? "rotate-180" : ""
+                                  }`}
+                                />
+                              </Button>
+                            </CollapsibleTrigger>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <Badge variant="outline" className="mb-1">
+                              {variant.product.brand.name}
+                            </Badge>
+                            <p className="font-medium">{variant.product.name}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{variant.specification.label}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {variant.barcode || variant.sku || "-"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="text-blue-600 font-medium">{storageQty}</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="text-green-600 font-medium">{displayQty}</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span
+                            className={
+                              isLowStock
+                                ? "inline-flex items-center gap-1 text-orange-600 font-semibold"
+                                : "font-semibold"
+                            }
+                          >
+                            {isLowStock && <AlertTriangle className="h-4 w-4" />}
+                            {variant.stockQuantity}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {formatUsd(stockValue)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openAdjustDialog(variant, "add")}
+                              title="Add stock"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openAdjustDialog(variant, "remove")}
+                              disabled={variant.stockQuantity === 0}
+                              title="Remove stock"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            {hasLocationData && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openAdjustDialog(variant, "transfer")}
+                                disabled={variant.locationStock.filter((ls) => ls.quantity > 0).length < 1}
+                                title="Transfer between locations"
+                              >
+                                <ArrowRight className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {hasLocationData && (
+                        <CollapsibleContent asChild>
+                          <TableRow className="bg-gray-50">
+                            <TableCell colSpan={9} className="py-2">
+                              <div className="flex flex-wrap gap-3 pl-8">
+                                {variant.locationStock.map((ls) => (
+                                  <div
+                                    key={ls.id}
+                                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${
+                                      ls.location.type === "storage"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-green-100 text-green-800"
+                                    }`}
+                                  >
+                                    {ls.location.type === "storage" ? (
+                                      <Warehouse className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <Store className="h-3.5 w-3.5" />
+                                    )}
+                                    <span className="font-medium">{ls.location.name}:</span>
+                                    <span>{ls.quantity}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </CollapsibleContent>
+                      )}
+                    </>
+                  </Collapsible>
                 );
               })}
             </TableBody>

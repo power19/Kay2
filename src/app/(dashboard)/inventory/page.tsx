@@ -17,7 +17,18 @@ async function getInventory() {
         },
       },
       specification: true,
+      locationStock: {
+        include: {
+          location: true,
+        },
+      },
     },
+  });
+}
+
+async function getLocations() {
+  return prisma.storageLocation.findMany({
+    orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
   });
 }
 
@@ -29,9 +40,10 @@ async function getExchangeRate() {
 }
 
 export default async function InventoryPage() {
-  const [inventory, exchangeRate] = await Promise.all([
+  const [inventory, exchangeRate, locations] = await Promise.all([
     getInventory(),
     getExchangeRate(),
+    getLocations(),
   ]);
 
   return (
@@ -42,7 +54,7 @@ export default async function InventoryPage() {
           Track and manage stock levels for all products
         </p>
       </div>
-      <InventoryClient inventory={inventory} exchangeRate={exchangeRate} />
+      <InventoryClient inventory={inventory} exchangeRate={exchangeRate} locations={locations} />
     </div>
   );
 }
