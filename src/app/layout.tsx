@@ -3,8 +3,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "KaylaAsh - Oil Distribution Management",
-  description: "Inventory, Quotes, and Invoice management for oil distribution",
+  title: "Omenbij - Inventory Management",
+  description: "Inventory, Quotes, and Invoice management with barcode scanning",
 };
 
 export default function RootLayout({

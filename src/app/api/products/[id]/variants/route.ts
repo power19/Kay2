@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { id: productId } = await params;
     const body = await request.json();
-    const { literVariationId, priceUsd, sku, stockQuantity, lowStockThreshold } = body;
+    const { literVariationId, priceUsd, sku, barcode, stockQuantity, lowStockThreshold } = body;
 
     if (!literVariationId) {
       return NextResponse.json(
@@ -30,6 +30,7 @@ export async function POST(
         literVariationId,
         priceUsd,
         sku: sku || null,
+        barcode: barcode || null,
         stockQuantity: stockQuantity || 0,
         lowStockThreshold: lowStockThreshold || 10,
       },
@@ -68,7 +69,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { variantId, priceUsd, sku, lowStockThreshold } = body;
+    const { variantId, priceUsd, sku, barcode, lowStockThreshold } = body;
 
     if (!variantId) {
       return NextResponse.json(
@@ -89,6 +90,7 @@ export async function PUT(
       data: {
         priceUsd,
         sku: sku || null,
+        barcode: barcode || null,
         lowStockThreshold: lowStockThreshold || 10,
       },
       include: {

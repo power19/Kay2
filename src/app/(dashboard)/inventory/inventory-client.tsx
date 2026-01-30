@@ -28,13 +28,15 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Minus, AlertTriangle } from "lucide-react";
+import { Plus, Minus, AlertTriangle, ScanBarcode } from "lucide-react";
 import { formatUsd, formatSrd, convertUsdToSrd } from "@/lib/currency";
+import { BarcodeScanner } from "@/components/shared/barcode-scanner";
 
 type Variant = {
   id: string;
   priceUsd: number;
   sku: string | null;
+  barcode: string | null;
   stockQuantity: number;
   lowStockThreshold: number;
   product: {
@@ -72,6 +74,34 @@ export function InventoryClient({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [filterLowStock, setFilterLowStock] = useState(false);
+  const [scannerLoading, setScannerLoading] = useState(false);
+
+  // Handle barcode scan
+  const handleBarcodeScan = async (barcode: string) => {
+    setScannerLoading(true);
+    try {
+      const res = await fetch(`/api/barcode?code=${encodeURIComponent(barcode)}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Product not found");
+        return;
+      }
+
+      // Find the variant in our inventory list
+      const variant = inventory.find((v) => v.id === data.id);
+      if (variant) {
+        openAdjustDialog(variant, "add");
+        toast.success(`Found: ${data.product.brand.name} - ${data.product.name}`);
+      } else {
+        toast.error("Product found but not in inventory view");
+      }
+    } catch {
+      toast.error("Failed to lookup barcode");
+    } finally {
+      setScannerLoading(false);
+    }
+  };
 
   const filteredInventory = filterLowStock
     ? inventory.filter((v) => v.stockQuantity <= v.lowStockThreshold)
@@ -153,6 +183,24 @@ export function InventoryClient({
 
   return (
     <div className="space-y-4">
+      {/* Barcode Scanner Section */}
+      <div className="rounded-lg border bg-blue-50 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <ScanBarcode className="h-5 w-5 text-blue-600" />
+          <h3 className="font-medium text-blue-900">Quick Scan</h3>
+          {scannerLoading && (
+            <span className="text-sm text-blue-600">Looking up...</span>
+          )}
+        </div>
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          placeholder="Scan barcode to add/remove stock..."
+        />
+        <p className="mt-2 text-xs text-blue-700">
+          Scan a barcode with your phone camera or hardware scanner to quickly adjust stock
+        </p>
+      </div>
+
       <div className="flex items-center gap-4">
         <Button
           variant={filterLowStock ? "default" : "outline"}
@@ -279,6 +327,7 @@ export function InventoryClient({
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead>Size</TableHead>
+                <TableHead>Barcode</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Price (USD)</TableHead>
                 <TableHead>Price (SRD)</TableHead>
@@ -301,6 +350,9 @@ export function InventoryClient({
                       </div>
                     </TableCell>
                     <TableCell>{variant.literVariation.label}</TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">
+                      {variant.barcode || "-"}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {variant.sku || "-"}
                     </TableCell>

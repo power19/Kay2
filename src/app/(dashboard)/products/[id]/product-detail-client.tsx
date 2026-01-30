@@ -44,6 +44,7 @@ type ProductVariant = {
   id: string;
   priceUsd: number;
   sku: string | null;
+  barcode: string | null;
   stockQuantity: number;
   lowStockThreshold: number;
   literVariation: LiterVariation;
@@ -75,6 +76,7 @@ export function ProductDetailClient({
     literVariationId: "",
     priceUsd: "",
     sku: "",
+    barcode: "",
     lowStockThreshold: "10",
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -89,6 +91,7 @@ export function ProductDetailClient({
       literVariationId: "",
       priceUsd: "",
       sku: "",
+      barcode: "",
       lowStockThreshold: "10",
     });
     setEditingVariant(null);
@@ -114,6 +117,7 @@ export function ProductDetailClient({
           literVariationId: formData.literVariationId,
           priceUsd: price,
           sku: formData.sku || null,
+          barcode: formData.barcode || null,
           lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
         }),
       });
@@ -154,6 +158,7 @@ export function ProductDetailClient({
           variantId: editingVariant.id,
           priceUsd: price,
           sku: formData.sku || null,
+          barcode: formData.barcode || null,
           lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
         }),
       });
@@ -218,6 +223,7 @@ export function ProductDetailClient({
       literVariationId: variant.literVariation.id,
       priceUsd: variant.priceUsd.toString(),
       sku: variant.sku || "",
+      barcode: variant.barcode || "",
       lowStockThreshold: variant.lowStockThreshold.toString(),
     });
   };
@@ -305,6 +311,18 @@ export function ProductDetailClient({
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="barcode">Barcode (Optional)</Label>
+                  <Input
+                    id="barcode"
+                    value={formData.barcode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, barcode: e.target.value })
+                    }
+                    placeholder="Scan or enter barcode"
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="lowStockThreshold">Low Stock Alert</Label>
                   <Input
                     id="lowStockThreshold"
@@ -366,6 +384,18 @@ export function ProductDetailClient({
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="edit-barcode">Barcode (Optional)</Label>
+                  <Input
+                    id="edit-barcode"
+                    value={formData.barcode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, barcode: e.target.value })
+                    }
+                    placeholder="Scan or enter barcode"
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="edit-lowStockThreshold">Low Stock Alert</Label>
                   <Input
                     id="edit-lowStockThreshold"
@@ -411,6 +441,7 @@ export function ProductDetailClient({
                   <TableHead>Size</TableHead>
                   <TableHead>Price (USD)</TableHead>
                   <TableHead>Price (SRD)</TableHead>
+                  <TableHead>Barcode</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead className="text-center">Stock</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
@@ -430,6 +461,9 @@ export function ProductDetailClient({
                         {formatSrd(
                           convertUsdToSrd(variant.priceUsd, exchangeRate)
                         )}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">
+                        {variant.barcode || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {variant.sku || "-"}

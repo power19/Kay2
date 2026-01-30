@@ -46,6 +46,7 @@ model ProductVariant {
   literVariationId  String
   priceUsd          Float
   sku               String?         @unique
+  barcode           String?         @unique
   stockQuantity     Int             @default(0)
   lowStockThreshold Int             @default(10)
   quoteItems        QuoteItem[]
