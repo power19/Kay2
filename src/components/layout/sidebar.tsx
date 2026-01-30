@@ -12,15 +12,18 @@ import {
   Users,
   Settings,
   DollarSign,
-  Ruler,
   Boxes,
   ScanBarcode,
+  PackagePlus,
+  Warehouse,
+  Settings2,
 } from "lucide-react";
 import { SidebarLogo } from "./sidebar-logo";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Quick Scan", href: "/scan", icon: ScanBarcode },
+  { name: "Receive Goods", href: "/receiving", icon: PackagePlus },
   { name: "Inventory", href: "/inventory", icon: Boxes },
   { name: "Products", href: "/products", icon: Package },
   { name: "Brands", href: "/brands", icon: Tags },
@@ -32,7 +35,8 @@ const navigation = [
 const settingsNavigation = [
   { name: "Company", href: "/settings/company", icon: Settings },
   { name: "Exchange Rate", href: "/settings/exchange-rate", icon: DollarSign },
-  { name: "Liter Sizes", href: "/settings/liter-variations", icon: Ruler },
+  { name: "Specifications", href: "/settings/specifications", icon: Settings2 },
+  { name: "Locations", href: "/settings/locations", icon: Warehouse },
 ];
 
 export function Sidebar() {
