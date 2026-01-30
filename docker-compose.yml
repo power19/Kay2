@@ -1,29 +1,43 @@
-version: '3.8'
-
 services:
-  kaylaash:
+  invman:
     build: .
-    container_name: kaylaash
+    container_name: invman
     environment:
       NODE_ENV: production
       DATABASE_URL: file:/app/data/prod.db
       AUTH_SECRET: ${AUTH_SECRET:-change-this-secret-in-production-min-32-chars}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
-      DEFAULT_EXCHANGE_RATE: ${DEFAULT_EXCHANGE_RATE:-35.5}
-      VIRTUAL_HOST: kay.powermental.fit
-      VIRTUAL_PORT: 3000
+      DEFAULT_EXCHANGE_RATE: ${DEFAULT_EXCHANGE_RATE:-1.0}
     volumes:
-      - kaylaash-data:/app/data
+      - invman-data:/app/data
     expose:
       - "3000"
     restart: unless-stopped
     networks:
-      - proxy-network
+      - web
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    networks:
+      - web
+    depends_on:
+      - invman
 
 volumes:
-  kaylaash-data:
+  invman-data:
+  caddy-data:
+  caddy-config:
 
 networks:
-  proxy-network:
-    external: true
-    name: usdt-exchange_default
+  web:
+    driver: bridge
