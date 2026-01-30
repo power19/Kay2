@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { id: productId } = await params;
     const body = await request.json();
-    const { literVariationId, priceUsd, sku, barcode, stockQuantity, lowStockThreshold } = body;
+    const { literVariationId, costPriceUsd, priceUsd, sku, barcode, stockQuantity, lowStockThreshold } = body;
 
     if (!literVariationId) {
       return NextResponse.json(
@@ -28,6 +28,7 @@ export async function POST(
       data: {
         productId,
         literVariationId,
+        costPriceUsd: costPriceUsd || 0,
         priceUsd,
         sku: sku || null,
         barcode: barcode || null,
@@ -69,7 +70,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { variantId, priceUsd, sku, barcode, lowStockThreshold } = body;
+    const { variantId, costPriceUsd, priceUsd, sku, barcode, lowStockThreshold } = body;
 
     if (!variantId) {
       return NextResponse.json(
@@ -88,6 +89,7 @@ export async function PUT(
     const variant = await prisma.productVariant.update({
       where: { id: variantId },
       data: {
+        costPriceUsd: costPriceUsd || 0,
         priceUsd,
         sku: sku || null,
         barcode: barcode || null,

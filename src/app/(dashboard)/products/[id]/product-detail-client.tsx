@@ -42,6 +42,7 @@ type LiterVariation = {
 
 type ProductVariant = {
   id: string;
+  costPriceUsd: number;
   priceUsd: number;
   sku: string | null;
   barcode: string | null;
@@ -74,6 +75,7 @@ export function ProductDetailClient({
   );
   const [formData, setFormData] = useState({
     literVariationId: "",
+    costPriceUsd: "",
     priceUsd: "",
     sku: "",
     barcode: "",
@@ -89,6 +91,7 @@ export function ProductDetailClient({
   const resetForm = () => {
     setFormData({
       literVariationId: "",
+      costPriceUsd: "",
       priceUsd: "",
       sku: "",
       barcode: "",
@@ -108,6 +111,8 @@ export function ProductDetailClient({
       return;
     }
 
+    const costPrice = parseFloat(formData.costPriceUsd) || 0;
+
     setIsLoading(true);
     try {
       const res = await fetch(`/api/products/${product.id}/variants`, {
@@ -115,6 +120,7 @@ export function ProductDetailClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           literVariationId: formData.literVariationId,
+          costPriceUsd: costPrice,
           priceUsd: price,
           sku: formData.sku || null,
           barcode: formData.barcode || null,
@@ -149,6 +155,8 @@ export function ProductDetailClient({
       return;
     }
 
+    const costPrice = parseFloat(formData.costPriceUsd) || 0;
+
     setIsLoading(true);
     try {
       const res = await fetch(`/api/products/${product.id}/variants`, {
@@ -156,6 +164,7 @@ export function ProductDetailClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           variantId: editingVariant.id,
+          costPriceUsd: costPrice,
           priceUsd: price,
           sku: formData.sku || null,
           barcode: formData.barcode || null,
@@ -221,6 +230,7 @@ export function ProductDetailClient({
     setEditingVariant(variant);
     setFormData({
       literVariationId: variant.literVariation.id,
+      costPriceUsd: variant.costPriceUsd.toString(),
       priceUsd: variant.priceUsd.toString(),
       sku: variant.sku || "",
       barcode: variant.barcode || "",
@@ -286,7 +296,21 @@ export function ProductDetailClient({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="priceUsd">Price (USD) *</Label>
+                  <Label htmlFor="costPriceUsd">Cost Price (USD)</Label>
+                  <Input
+                    id="costPriceUsd"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.costPriceUsd}
+                    onChange={(e) =>
+                      setFormData({ ...formData, costPriceUsd: e.target.value })
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="priceUsd">Sell Price (USD) *</Label>
                   <Input
                     id="priceUsd"
                     type="number"
@@ -361,7 +385,20 @@ export function ProductDetailClient({
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-priceUsd">Price (USD) *</Label>
+                  <Label htmlFor="edit-costPriceUsd">Cost Price (USD)</Label>
+                  <Input
+                    id="edit-costPriceUsd"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.costPriceUsd}
+                    onChange={(e) =>
+                      setFormData({ ...formData, costPriceUsd: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-priceUsd">Sell Price (USD) *</Label>
                   <Input
                     id="edit-priceUsd"
                     type="number"
@@ -439,8 +476,9 @@ export function ProductDetailClient({
               <TableHeader>
                 <TableRow>
                   <TableHead>Size</TableHead>
-                  <TableHead>Price (USD)</TableHead>
-                  <TableHead>Price (SRD)</TableHead>
+                  <TableHead>Cost (USD)</TableHead>
+                  <TableHead>Sell (USD)</TableHead>
+                  <TableHead>Margin</TableHead>
                   <TableHead>Barcode</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead className="text-center">Stock</TableHead>
@@ -451,16 +489,24 @@ export function ProductDetailClient({
                 {product.variants.map((variant) => {
                   const isLowStock =
                     variant.stockQuantity <= variant.lowStockThreshold;
+                  const margin = variant.costPriceUsd > 0
+                    ? ((variant.priceUsd - variant.costPriceUsd) / variant.costPriceUsd * 100).toFixed(1)
+                    : null;
                   return (
                     <TableRow key={variant.id}>
                       <TableCell className="font-medium">
                         {variant.literVariation.label}
                       </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {variant.costPriceUsd > 0 ? formatUsd(variant.costPriceUsd) : "-"}
+                      </TableCell>
                       <TableCell>{formatUsd(variant.priceUsd)}</TableCell>
                       <TableCell>
-                        {formatSrd(
-                          convertUsdToSrd(variant.priceUsd, exchangeRate)
-                        )}
+                        {margin ? (
+                          <span className={parseFloat(margin) > 0 ? "text-green-600" : "text-red-600"}>
+                            {margin}%
+                          </span>
+                        ) : "-"}
                       </TableCell>
                       <TableCell className="font-mono text-sm text-muted-foreground">
                         {variant.barcode || "-"}

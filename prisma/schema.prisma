@@ -44,6 +44,7 @@ model ProductVariant {
   productId         String
   literVariation    LiterVariation  @relation(fields: [literVariationId], references: [id])
   literVariationId  String
+  costPriceUsd      Float           @default(0)
   priceUsd          Float
   sku               String?         @unique
   barcode           String?         @unique

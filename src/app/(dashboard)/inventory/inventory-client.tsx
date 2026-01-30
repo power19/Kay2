@@ -28,17 +28,20 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Minus, AlertTriangle, ScanBarcode } from "lucide-react";
+import { Plus, Minus, AlertTriangle, ScanBarcode, TrendingUp, DollarSign, Package } from "lucide-react";
 import { formatUsd, formatSrd, convertUsdToSrd } from "@/lib/currency";
 import { BarcodeScanner } from "@/components/shared/barcode-scanner";
+import { Card, CardContent } from "@/components/ui/card";
 
 type Variant = {
   id: string;
+  costPriceUsd: number;
   priceUsd: number;
   sku: string | null;
   barcode: string | null;
   stockQuantity: number;
   lowStockThreshold: number;
+  createdAt: string;
   product: {
     id: string;
     name: string;
@@ -110,6 +113,12 @@ export function InventoryClient({
   const lowStockCount = inventory.filter(
     (v) => v.stockQuantity <= v.lowStockThreshold
   ).length;
+
+  // Calculate inventory stats
+  const totalItems = inventory.reduce((sum, v) => sum + v.stockQuantity, 0);
+  const totalCostValue = inventory.reduce((sum, v) => sum + (v.costPriceUsd * v.stockQuantity), 0);
+  const totalSellValue = inventory.reduce((sum, v) => sum + (v.priceUsd * v.stockQuantity), 0);
+  const totalPotentialProfit = totalSellValue - totalCostValue;
 
   const resetForm = () => {
     setFormData({
@@ -183,6 +192,46 @@ export function InventoryClient({
 
   return (
     <div className="space-y-4">
+      {/* Inventory Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Total Items</span>
+            </div>
+            <p className="text-2xl font-bold">{totalItems}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Cost Value</span>
+            </div>
+            <p className="text-2xl font-bold">{formatUsd(totalCostValue)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Sell Value</span>
+            </div>
+            <p className="text-2xl font-bold">{formatUsd(totalSellValue)}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-green-600" />
+              <span className="text-sm text-green-700">Potential Profit</span>
+            </div>
+            <p className="text-2xl font-bold text-green-600">{formatUsd(totalPotentialProfit)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Barcode Scanner Section */}
       <div className="rounded-lg border bg-blue-50 p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -328,17 +377,22 @@ export function InventoryClient({
                 <TableHead>Product</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Barcode</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Price (USD)</TableHead>
-                <TableHead>Price (SRD)</TableHead>
+                <TableHead>Cost</TableHead>
+                <TableHead>Sell</TableHead>
+                <TableHead>Margin</TableHead>
                 <TableHead className="text-center">Stock</TableHead>
-                <TableHead className="w-[150px]">Actions</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead className="w-[120px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredInventory.map((variant) => {
                 const isLowStock =
                   variant.stockQuantity <= variant.lowStockThreshold;
+                const margin = variant.costPriceUsd > 0
+                  ? ((variant.priceUsd - variant.costPriceUsd) / variant.costPriceUsd * 100).toFixed(0)
+                  : "-";
+                const stockValue = variant.costPriceUsd * variant.stockQuantity;
                 return (
                   <TableRow key={variant.id}>
                     <TableCell>
@@ -350,15 +404,21 @@ export function InventoryClient({
                       </div>
                     </TableCell>
                     <TableCell>{variant.literVariation.label}</TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">
-                      {variant.barcode || "-"}
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {variant.barcode || variant.sku || "-"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {variant.sku || "-"}
+                      {formatUsd(variant.costPriceUsd)}
                     </TableCell>
-                    <TableCell>{formatUsd(variant.priceUsd)}</TableCell>
+                    <TableCell className="font-medium">
+                      {formatUsd(variant.priceUsd)}
+                    </TableCell>
                     <TableCell>
-                      {formatSrd(convertUsdToSrd(variant.priceUsd, exchangeRate))}
+                      {margin !== "-" ? (
+                        <span className={Number(margin) >= 20 ? "text-green-600 font-medium" : Number(margin) >= 10 ? "text-yellow-600" : "text-red-600"}>
+                          {margin}%
+                        </span>
+                      ) : "-"}
                     </TableCell>
                     <TableCell className="text-center">
                       <span
@@ -374,8 +434,11 @@ export function InventoryClient({
                         {variant.stockQuantity}
                       </span>
                     </TableCell>
+                    <TableCell className="text-sm">
+                      {formatUsd(stockValue)}
+                    </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="outline"
                           size="sm"
