@@ -22,8 +22,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ScanBarcode } from "lucide-react";
 import { formatUsd, formatSrd, convertUsdToSrd } from "@/lib/currency";
+import { BarcodeScanner } from "@/components/shared/barcode-scanner";
 
 type Customer = {
   id: string;
@@ -34,6 +35,7 @@ type Customer = {
 type Variant = {
   id: string;
   priceUsd: number;
+  barcode: string | null;
   stockQuantity: number;
   product: {
     id: string;
@@ -71,6 +73,7 @@ export function InvoiceForm({
   const [taxRate, setTaxRate] = useState(0);
   const [items, setItems] = useState<LineItem[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState("");
+  const [scannerLoading, setScannerLoading] = useState(false);
 
   const availableVariants = variants.filter(
     (v) => !items.some((item) => item.variantId === v.id)
@@ -90,6 +93,64 @@ export function InvoiceForm({
       },
     ]);
     setSelectedVariantId("");
+  };
+
+  // Handle barcode scan to add items
+  const handleBarcodeScan = async (barcode: string) => {
+    setScannerLoading(true);
+    try {
+      const res = await fetch(`/api/barcode?code=${encodeURIComponent(barcode)}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Product not found");
+        return;
+      }
+
+      // Check if already in items
+      const existingIndex = items.findIndex((item) => item.variantId === data.id);
+      if (existingIndex !== -1) {
+        // Increment quantity
+        const newItems = [...items];
+        const maxQty = newItems[existingIndex].variant.stockQuantity;
+        if (newItems[existingIndex].quantity < maxQty) {
+          newItems[existingIndex].quantity += 1;
+          setItems(newItems);
+          toast.success(`Added another ${data.product.name} (Qty: ${newItems[existingIndex].quantity})`);
+        } else {
+          toast.error("Maximum stock reached for this item");
+        }
+        return;
+      }
+
+      // Find the variant in our list
+      const variant = variants.find((v) => v.id === data.id);
+      if (!variant) {
+        toast.error("Product not available for invoicing");
+        return;
+      }
+
+      if (variant.stockQuantity <= 0) {
+        toast.error("Product is out of stock");
+        return;
+      }
+
+      // Add new item
+      setItems([
+        ...items,
+        {
+          variantId: variant.id,
+          variant,
+          quantity: 1,
+          unitPriceUsd: variant.priceUsd,
+        },
+      ]);
+      toast.success(`Added: ${data.product.brand.name} - ${data.product.name}`);
+    } catch {
+      toast.error("Failed to lookup barcode");
+    } finally {
+      setScannerLoading(false);
+    }
   };
 
   const updateItemQuantity = (index: number, quantity: number) => {
@@ -231,9 +292,28 @@ export function InvoiceForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Line Items</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ScanBarcode className="h-5 w-5" />
+              Line Items
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Barcode Scanner */}
+            <div className="rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm font-medium text-blue-900 mb-2">
+                Scan barcode to add items
+              </p>
+              <BarcodeScanner
+                onScan={handleBarcodeScan}
+                placeholder="Scan product barcode..."
+                autoFocus={false}
+              />
+              {scannerLoading && (
+                <p className="mt-2 text-sm text-blue-600">Looking up product...</p>
+              )}
+            </div>
+
+            {/* Manual Selection */}
             {variants.length === 0 ? (
               <div className="text-center py-4 text-muted-foreground border rounded-md">
                 <p>No product variants available.</p>
@@ -248,7 +328,7 @@ export function InvoiceForm({
                   onValueChange={setSelectedVariantId}
                 >
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select a product to add" />
+                    <SelectValue placeholder="Or select a product manually" />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={4}>
                     {availableVariants.map((variant) => (
@@ -338,7 +418,7 @@ export function InvoiceForm({
 
             {items.length === 0 && (
               <p className="text-center py-4 text-muted-foreground">
-                No items added yet
+                No items added yet. Scan a barcode or select from the dropdown.
               </p>
             )}
           </CardContent>

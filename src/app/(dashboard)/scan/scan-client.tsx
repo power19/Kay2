@@ -13,15 +13,19 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  ScanBarcode,
   Plus,
   Minus,
   Check,
   X,
   Package,
   Camera,
+  PackagePlus,
+  PackageMinus,
+  Truck,
+  ShoppingCart,
 } from "lucide-react";
 import { BarcodeScanner } from "@/components/shared/barcode-scanner";
 import { formatUsd } from "@/lib/currency";
@@ -50,19 +54,18 @@ type ScannedProduct = {
 
 type ScanHistoryItem = {
   product: ScannedProduct;
-  action: "add" | "remove";
+  action: "receive" | "sell";
   quantity: number;
   timestamp: Date;
 };
 
 export function ScanClient() {
+  const [mode, setMode] = useState<"receive" | "sell">("receive");
   const [scannedProduct, setScannedProduct] = useState<ScannedProduct | null>(
     null
   );
   const [loading, setLoading] = useState(false);
-  const [adjustmentType, setAdjustmentType] = useState<"add" | "remove">("add");
   const [quantity, setQuantity] = useState("1");
-  const [movementType, setMovementType] = useState("purchase");
   const [reference, setReference] = useState("");
   const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -112,11 +115,11 @@ export function ScanClient() {
       return;
     }
 
-    const quantityChange = adjustmentType === "add" ? qty : -qty;
+    const quantityChange = mode === "receive" ? qty : -qty;
     const newQuantity = scannedProduct.stockQuantity + quantityChange;
 
     if (newQuantity < 0) {
-      toast.error("Stock cannot be negative");
+      toast.error("Not enough stock available");
       return;
     }
 
@@ -127,7 +130,7 @@ export function ScanClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           quantityChange,
-          type: movementType,
+          type: mode === "receive" ? "purchase" : "sale",
           reference: reference || null,
           notes: `Scanned: ${scannedProduct.barcode || scannedProduct.sku}`,
         }),
@@ -144,15 +147,15 @@ export function ScanClient() {
       setScanHistory((prev) => [
         {
           product: scannedProduct,
-          action: adjustmentType,
+          action: mode,
           quantity: qty,
           timestamp: new Date(),
         },
-        ...prev.slice(0, 9), // Keep last 10 items
+        ...prev.slice(0, 19), // Keep last 20 items
       ]);
 
       toast.success(
-        `${adjustmentType === "add" ? "Added" : "Removed"} ${qty} units. New stock: ${updatedData.variant.stockQuantity}`
+        `${mode === "receive" ? "Received" : "Sold"} ${qty} units. New stock: ${updatedData.variant.stockQuantity}`
       );
 
       // Update scanned product with new stock
@@ -164,6 +167,11 @@ export function ScanClient() {
       // Reset for next scan
       setQuantity("1");
       setReference("");
+
+      // Clear product after short delay to allow next scan
+      setTimeout(() => {
+        setScannedProduct(null);
+      }, 1500);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to adjust stock"
@@ -179,31 +187,87 @@ export function ScanClient() {
     setReference("");
   };
 
+  const totalReceived = scanHistory
+    .filter((h) => h.action === "receive")
+    .reduce((sum, h) => sum + h.quantity, 0);
+
+  const totalSold = scanHistory
+    .filter((h) => h.action === "sell")
+    .reduce((sum, h) => sum + h.quantity, 0);
+
   return (
     <div className="space-y-6">
-      {/* Scanner Section */}
-      <Card className="border-2 border-blue-200 bg-blue-50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-blue-900">
-            <Camera className="h-5 w-5" />
-            Barcode Scanner
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BarcodeScanner
-            onScan={handleBarcodeScan}
-            placeholder="Scan barcode or enter manually..."
-            autoFocus={!scannedProduct}
-          />
-          {loading && (
-            <p className="mt-2 text-sm text-blue-600">Looking up product...</p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Mode Tabs */}
+      <Tabs value={mode} onValueChange={(v) => setMode(v as "receive" | "sell")}>
+        <TabsList className="grid w-full grid-cols-2 h-14">
+          <TabsTrigger
+            value="receive"
+            className="h-12 text-base data-[state=active]:bg-green-600 data-[state=active]:text-white"
+          >
+            <Truck className="mr-2 h-5 w-5" />
+            Receive Goods
+          </TabsTrigger>
+          <TabsTrigger
+            value="sell"
+            className="h-12 text-base data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+          >
+            <ShoppingCart className="mr-2 h-5 w-5" />
+            Sell / Remove
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="receive" className="mt-4">
+          <Card className="border-2 border-green-200 bg-green-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-green-900">
+                <PackagePlus className="h-5 w-5" />
+                Scan to Receive Stock
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BarcodeScanner
+                onScan={handleBarcodeScan}
+                placeholder="Scan barcode to add to inventory..."
+                autoFocus={!scannedProduct && mode === "receive"}
+              />
+              {loading && (
+                <p className="mt-2 text-sm text-green-600">Looking up product...</p>
+              )}
+              <p className="mt-2 text-sm text-green-700">
+                Scan products as they arrive to add them to stock
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sell" className="mt-4">
+          <Card className="border-2 border-blue-200 bg-blue-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <PackageMinus className="h-5 w-5" />
+                Scan to Sell / Remove Stock
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BarcodeScanner
+                onScan={handleBarcodeScan}
+                placeholder="Scan barcode to remove from inventory..."
+                autoFocus={!scannedProduct && mode === "sell"}
+              />
+              {loading && (
+                <p className="mt-2 text-sm text-blue-600">Looking up product...</p>
+              )}
+              <p className="mt-2 text-sm text-blue-700">
+                Scan products when selling to deduct from stock
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Scanned Product Info */}
       {scannedProduct && (
-        <Card>
+        <Card className={mode === "receive" ? "border-green-300" : "border-blue-300"}>
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <CardTitle className="flex items-center gap-2">
@@ -251,32 +315,6 @@ export function ScanClient() {
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant={adjustmentType === "add" ? "default" : "outline"}
-                className="h-14"
-                onClick={() => {
-                  setAdjustmentType("add");
-                  setMovementType("purchase");
-                }}
-              >
-                <Plus className="mr-2 h-5 w-5" />
-                Add Stock
-              </Button>
-              <Button
-                variant={adjustmentType === "remove" ? "destructive" : "outline"}
-                className="h-14"
-                onClick={() => {
-                  setAdjustmentType("remove");
-                  setMovementType("sale");
-                }}
-              >
-                <Minus className="mr-2 h-5 w-5" />
-                Remove Stock
-              </Button>
-            </div>
-
             {/* Quantity Input */}
             <div className="space-y-2">
               <Label htmlFor="quantity">Quantity</Label>
@@ -295,6 +333,7 @@ export function ScanClient() {
                   id="quantity"
                   type="number"
                   min="1"
+                  max={mode === "sell" ? scannedProduct.stockQuantity : undefined}
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   className="text-center text-lg font-bold"
@@ -311,38 +350,16 @@ export function ScanClient() {
               </div>
             </div>
 
-            {/* Movement Type */}
-            <div className="space-y-2">
-              <Label htmlFor="movementType">Reason</Label>
-              <Select value={movementType} onValueChange={setMovementType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {adjustmentType === "add" ? (
-                    <>
-                      <SelectItem value="purchase">Purchase</SelectItem>
-                      <SelectItem value="return">Return</SelectItem>
-                      <SelectItem value="adjustment">Adjustment</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="sale">Sale</SelectItem>
-                      <SelectItem value="adjustment">Adjustment</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Reference */}
             <div className="space-y-2">
-              <Label htmlFor="reference">Reference (Optional)</Label>
+              <Label htmlFor="reference">
+                {mode === "receive" ? "PO / Delivery Reference" : "Sale Reference"} (Optional)
+              </Label>
               <Input
                 id="reference"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
-                placeholder="e.g., PO-12345"
+                placeholder={mode === "receive" ? "e.g., PO-12345" : "e.g., CASH-001"}
               />
             </div>
 
@@ -350,15 +367,15 @@ export function ScanClient() {
             <Button
               onClick={handleStockAdjustment}
               disabled={isProcessing}
-              className="w-full h-12 text-lg"
-              variant={adjustmentType === "add" ? "default" : "destructive"}
+              className="w-full h-14 text-lg"
+              variant={mode === "receive" ? "default" : "destructive"}
             >
               {isProcessing ? (
                 "Processing..."
               ) : (
                 <>
                   <Check className="mr-2 h-5 w-5" />
-                  {adjustmentType === "add" ? "Add" : "Remove"} {quantity} Units
+                  {mode === "receive" ? "Receive" : "Sell"} {quantity} Units
                 </>
               )}
             </Button>
@@ -366,20 +383,44 @@ export function ScanClient() {
         </Card>
       )}
 
+      {/* Session Summary */}
+      {scanHistory.length > 0 && (
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="pt-4">
+              <div className="text-center">
+                <p className="text-sm text-green-700">Total Received</p>
+                <p className="text-3xl font-bold text-green-600">+{totalReceived}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="pt-4">
+              <div className="text-center">
+                <p className="text-sm text-blue-700">Total Sold</p>
+                <p className="text-3xl font-bold text-blue-600">-{totalSold}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Scan History */}
       {scanHistory.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Recent Scans
+              Session History ({scanHistory.length} items)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-64 overflow-y-auto">
               {scanHistory.map((item, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between rounded-lg bg-gray-50 p-2 text-sm"
+                  className={`flex items-center justify-between rounded-lg p-2 text-sm ${
+                    item.action === "receive" ? "bg-green-50" : "bg-blue-50"
+                  }`}
                 >
                   <div>
                     <span className="font-medium">
@@ -392,11 +433,10 @@ export function ScanClient() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge
-                      variant={
-                        item.action === "add" ? "default" : "destructive"
-                      }
+                      variant={item.action === "receive" ? "default" : "secondary"}
+                      className={item.action === "receive" ? "bg-green-600" : "bg-blue-600 text-white"}
                     >
-                      {item.action === "add" ? "+" : "-"}
+                      {item.action === "receive" ? "+" : "-"}
                       {item.quantity}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
