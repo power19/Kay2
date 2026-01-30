@@ -1,12 +1,13 @@
-# Oil Distribution Inventory Management Application - Implementation Plan
+# Omenbij Electronics Inventory Management Application - Implementation Plan
 
 ## Overview
 
-A simple, web-based inventory management system for an oil distribution business that handles:
-- Inventory tracking
+A simple, web-based inventory management system for an electronics distribution business that handles:
+- Inventory tracking with barcode scanning
 - Quote creation
 - Invoice creation
 - Currency conversion (USD stored, SRD displayed)
+- Cost price tracking with profit margin calculations
 
 ---
 
@@ -20,6 +21,7 @@ A simple, web-based inventory management system for an oil distribution business
 | **Database** | SQLite | No separate server, easy backup (just copy a file) |
 | **ORM** | Prisma | Type-safe queries, easy migrations |
 | **Auth** | Simple session-based | Single user doesn't need complex auth |
+| **Barcode** | html5-qrcode | Camera and hardware scanner support |
 | **Deployment** | Docker + Docker Compose | Easy VPS deployment |
 
 ---
@@ -28,45 +30,58 @@ A simple, web-based inventory management system for an oil distribution business
 
 ```
 ┌─────────────────┐       ┌─────────────────────┐       ┌──────────────────┐
-│     brands      │       │      products       │       │ liter_variations │
+│     brands      │       │      products       │       │  specifications  │
 ├─────────────────┤       ├─────────────────────┤       ├──────────────────┤
 │ id (PK)         │───┐   │ id (PK)             │   ┌───│ id (PK)          │
-│ name            │   └──>│ brand_id (FK)       │   │   │ size_liters      │
+│ name            │   └──>│ brand_id (FK)       │   │   │ value            │
 │ description     │       │ name                │   │   │ label            │
-│ created_at      │       │ description         │   │   │ is_drum          │
+│ created_at      │       │ description         │   │   │ sort_order       │
 └─────────────────┘       └─────────────────────┘   │   └──────────────────┘
-                                    │               │
-                          ┌─────────▼───────────────▼──┐
-                          │    product_variants        │
-                          ├────────────────────────────┤
-                          │ id (PK)                    │
-                          │ product_id (FK)            │
-                          │ liter_variation_id (FK)    │
-                          │ price_usd                  │
-                          │ sku                        │
-                          │ stock_quantity             │◄─── Inventory tracked here
-                          │ low_stock_threshold        │
-                          └────────────────────────────┘
-                                    │
-        ┌───────────────────────────┼───────────────────────────┐
-        │                           │                           │
-        ▼                           ▼                           ▼
+                                   │               │
+                         ┌─────────▼───────────────▼──┐
+                         │    product_variants        │
+                         ├────────────────────────────┤
+                         │ id (PK)                    │
+                         │ product_id (FK)            │
+                         │ specification_id (FK)      │
+                         │ cost_price_usd             │◄─── Cost tracking
+                         │ price_usd                  │
+                         │ sku                        │
+                         │ barcode                    │◄─── Barcode scanning
+                         │ stock_quantity             │◄─── Inventory tracked here
+                         │ low_stock_threshold        │
+                         └────────────────────────────┘
+                                   │
+       ┌───────────────────────────┼───────────────────────────┐
+       │                           │                           │
+       ▼                           ▼                           ▼
 ┌───────────────┐         ┌─────────────────┐         ┌─────────────────┐
 │  quote_items  │         │ invoice_items   │         │ stock_movements │
 └───────────────┘         └─────────────────┘         └─────────────────┘
-        │                           │
-        ▼                           ▼
+       │                           │
+       ▼                           ▼
 ┌───────────────┐         ┌─────────────────┐         ┌─────────────────┐
 │    quotes     │         │    invoices     │         │   customers     │
 └───────────────┘         └─────────────────┘         └─────────────────┘
 
-                                                      ┌─────────────────┐
-                                                      │ exchange_rates  │
-                                                      ├─────────────────┤
-                                                      │ rate_usd_to_srd │
-                                                      │ is_current      │
-                                                      │ effective_date  │
-                                                      └─────────────────┘
+                                                     ┌─────────────────┐
+                                                     │ exchange_rates  │
+                                                     ├─────────────────┤
+                                                     │ rate_usd_to_srd │
+                                                     │ is_current      │
+                                                     │ effective_date  │
+                                                     └─────────────────┘
+
+                                                     ┌─────────────────┐
+                                                     │  company_info   │
+                                                     ├─────────────────┤
+                                                     │ name            │
+                                                     │ logo            │
+                                                     │ address         │
+                                                     │ phone           │
+                                                     │ email           │
+                                                     │ website         │
+                                                     └─────────────────┘
 ```
 
 ### Prisma Schema
@@ -90,11 +105,11 @@ model Brand {
   updatedAt   DateTime  @updatedAt
 }
 
-model LiterVariation {
+model Specification {
   id              String           @id @default(cuid())
-  sizeInLiters    Float
-  label           String           @unique  // e.g., "1L", "5L", "20L Drum"
-  isDrum          Boolean          @default(false)
+  value           String           // e.g., "storage", "color", "size"
+  label           String           @unique  // e.g., "128GB", "256GB", "Black", "White"
+  sortOrder       Int              @default(0)
   productVariants ProductVariant[]
   createdAt       DateTime         @default(now())
 }
@@ -113,22 +128,24 @@ model Product {
 }
 
 model ProductVariant {
-  id                 String          @id @default(cuid())
-  product            Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId          String
-  literVariation     LiterVariation  @relation(fields: [literVariationId], references: [id])
-  literVariationId   String
-  priceUsd           Float
-  sku                String?         @unique
-  stockQuantity      Int             @default(0)
-  lowStockThreshold  Int             @default(10)
-  quoteItems         QuoteItem[]
-  invoiceItems       InvoiceItem[]
-  stockMovements     StockMovement[]
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  id                String          @id @default(cuid())
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId         String
+  specification     Specification   @relation(fields: [specificationId], references: [id])
+  specificationId   String
+  costPriceUsd      Float           @default(0)
+  priceUsd          Float
+  sku               String?         @unique
+  barcode           String?         @unique
+  stockQuantity     Int             @default(0)
+  lowStockThreshold Int             @default(10)
+  quoteItems        QuoteItem[]
+  invoiceItems      InvoiceItem[]
+  stockMovements    StockMovement[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
-  @@unique([productId, literVariationId])
+  @@unique([productId, specificationId])
 }
 
 model StockMovement {
@@ -143,16 +160,31 @@ model StockMovement {
 }
 
 model Customer {
-  id          String    @id @default(cuid())
+  id           String    @id @default(cuid())
+  customerCode String?   @unique
+  name         String
+  companyName  String?
+  email        String?
+  phone        String?
+  address      String?
+  quotes       Quote[]
+  invoices     Invoice[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model CompanyInfo {
+  id          String  @id @default(cuid())
   name        String
-  companyName String?
-  email       String?
-  phone       String?
+  logo        String? // Base64 encoded image
   address     String?
-  quotes      Quote[]
-  invoices    Invoice[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  phone       String?
+  email       String?
+  website     String?
+  bankName    String?
+  bankAccUsd  String?
+  bankAccSrd  String?
+  bankAccEur  String?
 }
 
 model ExchangeRate {
@@ -192,24 +224,27 @@ model QuoteItem {
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  invoiceNumber String        @unique
-  customer      Customer      @relation(fields: [customerId], references: [id])
-  customerId    String
-  quote         Quote?        @relation(fields: [quoteId], references: [id])
-  quoteId       String?
-  exchangeRate  Float
-  items         InvoiceItem[]
-  subtotalUsd   Float
-  taxRate       Float         @default(0)
-  taxAmountUsd  Float         @default(0)
-  totalUsd      Float
-  status        String        @default("draft") // draft, sent, paid, overdue, cancelled
-  dueDate       DateTime?
-  paidDate      DateTime?
-  notes         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  customerId      String
+  quote           Quote?        @relation(fields: [quoteId], references: [id])
+  quoteId         String?
+  exchangeRate    Float
+  items           InvoiceItem[]
+  subtotalUsd     Float
+  discountPercent Float         @default(0)
+  discountUsd     Float         @default(0)
+  taxRate         Float         @default(0)
+  taxAmountUsd    Float         @default(0)
+  totalUsd        Float
+  status          String        @default("draft") // draft, sent, paid, overdue, cancelled
+  paymentTerms    String        @default("CASH/BANK")
+  dueDate         DateTime?
+  paidDate        DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model InvoiceItem {
@@ -242,10 +277,10 @@ model Setting {
 | P0 | Project Setup | Next.js, Prisma, Tailwind, shadcn/ui |
 | P0 | Database Schema | Prisma schema with migrations |
 | P0 | Simple Auth | Session-based login with single admin user |
-| P0 | Brand Management | CRUD for brands |
-| P0 | Liter Variations | CRUD for liter variations (1L, 5L, 20L, etc.) |
+| P0 | Brand Management | CRUD for brands (Apple, Samsung, Sony, etc.) |
+| P0 | Specifications | CRUD for specifications (128GB, 256GB, Black, White, etc.) |
 | P0 | Product Management | CRUD for products with brand association |
-| P0 | Product Variants | Create variants (product + liter size + price) |
+| P0 | Product Variants | Create variants (product + specification + prices) |
 
 ### Phase 2: Core Business Features
 
@@ -255,6 +290,8 @@ model Setting {
 | P0 | Currency Display | Show prices in both USD and SRD |
 | P0 | Inventory Tracking | View stock levels, manual adjustments |
 | P0 | Stock Movements | Track history of stock changes |
+| P0 | Barcode Scanning | Camera and hardware scanner support |
+| P0 | Cost Price Tracking | Track cost vs sell price with margins |
 | P1 | Low Stock Alerts | Visual indicators for low inventory |
 
 ### Phase 3: Quotes & Invoices
@@ -266,15 +303,18 @@ model Setting {
 | P0 | Quote Status Management | Draft, Sent, Accepted, Rejected, Expired |
 | P0 | Invoice Creation | Create invoices (standalone or from quote) |
 | P0 | Invoice Status Management | Draft, Sent, Paid, Overdue, Cancelled |
+| P0 | Barcode Scanning in Forms | Scan to add items to quotes/invoices |
 | P1 | Convert Quote to Invoice | One-click conversion |
 
 ### Phase 4: Polish & Extras
 
 | Priority | Feature | Description |
 |----------|---------|-------------|
+| P0 | Company Branding | Logo upload, company info display |
 | P1 | Dashboard | Overview with key metrics |
 | P1 | Print/PDF Export | Print-friendly views |
-| P2 | Search & Filtering | Search across all entities |
+| P2 | Quick Scan Mode | Dedicated page for receiving/selling |
+| P2 | Reporting Module | Sales and inventory reports |
 | P2 | Docker Setup | Dockerfile and docker-compose.yml |
 
 ---
@@ -282,7 +322,7 @@ model Setting {
 ## 4. File/Folder Structure
 
 ```
-kaylaash/
+omenbij/
 ├── .env.example
 ├── docker-compose.yml
 ├── Dockerfile
@@ -314,26 +354,32 @@ kaylaash/
 │   │   │   ├── customers/
 │   │   │   ├── quotes/
 │   │   │   ├── invoices/
+│   │   │   ├── scan/             # Quick scan mode
 │   │   │   └── settings/
+│   │   │       ├── company/
+│   │   │       ├── specifications/
+│   │   │       └── exchange-rate/
 │   │   │
 │   │   └── api/
 │   │       ├── auth/
+│   │       ├── barcode/          # Barcode lookup
 │   │       ├── brands/
-│   │       ├── liter-variations/
+│   │       ├── specifications/
 │   │       ├── products/
 │   │       ├── inventory/
 │   │       ├── customers/
 │   │       ├── quotes/
 │   │       ├── invoices/
 │   │       ├── exchange-rate/
+│   │       ├── company/
 │   │       └── settings/
 │   │
 │   ├── components/
 │   │   ├── ui/                   # shadcn/ui components
-│   │   ├── layout/               # Sidebar, Header
+│   │   ├── layout/               # Sidebar, Header, Logo
 │   │   ├── forms/                # All form components
 │   │   ├── tables/               # Data tables
-│   │   └── shared/               # Currency display, badges, etc.
+│   │   └── shared/               # Currency display, badges, barcode scanner
 │   │
 │   ├── lib/
 │   │   ├── prisma.ts
@@ -358,6 +404,8 @@ kaylaash/
 ```
 Dashboard
 ---
+Quick Scan                        # Fast receive/sell mode
+---
 Inventory
   - Overview
   - Stock Movements
@@ -372,9 +420,9 @@ Sales
   - Customers
 ---
 Settings
+  - Company Info
   - Exchange Rate
-  - Liter Variations
-  - General
+  - Specifications
 ```
 
 ---
@@ -402,6 +450,23 @@ export function formatSrd(amount: number): string {
     currency: 'SRD',
   }).format(amount);
 }
+```
+
+### Barcode Scanner Component
+
+```typescript
+// Uses html5-qrcode for camera scanning
+// Also supports hardware scanner input (keyboard mode)
+// Works on mobile phones and desktop
+```
+
+### Profit Margin Calculation
+
+```typescript
+// Calculate profit margin from cost and sell price
+const margin = costPrice > 0
+  ? ((sellPrice - costPrice) / costPrice * 100)
+  : 0;
 ```
 
 ### Quote/Invoice Number Generation
@@ -480,20 +545,31 @@ services:
 
 ---
 
-## 9. Implementation Order
+## 9. Example Specifications for Electronics
 
-1. **Day 1-3**: Project setup, database schema, auth, brand & liter variation CRUD
-2. **Day 4-7**: Product management, inventory tracking, exchange rate
-3. **Day 8-14**: Customers, quotes, invoices, currency display
-4. **Day 15-18**: Dashboard, print views, Docker setup, testing
+| Label | Value | Use Case |
+|-------|-------|----------|
+| 128GB | storage | iPhone, Samsung storage options |
+| 256GB | storage | iPhone, Samsung storage options |
+| 512GB | storage | iPhone, Samsung storage options |
+| 1TB | storage | iPhone Pro Max, laptops |
+| Black | color | Any device color variant |
+| White | color | Any device color variant |
+| Silver | color | MacBook, iPhone colors |
+| Space Gray | color | MacBook, iPhone colors |
+| Small | size | Accessories, cases |
+| Medium | size | Accessories, cases |
+| Large | size | Accessories, cases |
 
 ---
 
 ## Summary
 
-A simple, practical inventory management system using:
+A simple, practical inventory management system for electronics using:
 - **Next.js + SQLite + Prisma** - Full-stack simplicity
 - **Single-user auth** - Appropriate for small business
 - **USD storage, SRD display** - Clean currency handling
+- **Barcode scanning** - Phone camera or hardware scanner
+- **Cost/Sell price tracking** - Profit margin calculations
 - **Docker-ready** - Easy VPS deployment
 - **shadcn/ui** - Professional UI with minimal effort
