@@ -9,13 +9,9 @@ export async function GET() {
     if (!company) {
       company = await prisma.companyInfo.create({
         data: {
-          name: "Black Water Distribution",
-          address: "Doekhie weg west #69\nParamaribo",
-          phone: "(597) 8819128",
-          bankName: "Fina bank",
-          bankAccUsd: "1001556149",
-          bankAccSrd: "1001556138",
-          bankAccEur: "1001556157",
+          name: "Omenbij",
+          address: "",
+          phone: "",
         },
       });
     }
@@ -33,18 +29,18 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { name, address, phone, bankName, bankAccUsd, bankAccSrd, bankAccEur } = body;
+    const { name, address, phone, email, website, bankName, bankAccUsd, bankAccSrd, bankAccEur } = body;
 
     let company = await prisma.companyInfo.findFirst();
 
     if (company) {
       company = await prisma.companyInfo.update({
         where: { id: company.id },
-        data: { name, address, phone, bankName, bankAccUsd, bankAccSrd, bankAccEur },
+        data: { name, address, phone, email, website, bankName, bankAccUsd, bankAccSrd, bankAccEur },
       });
     } else {
       company = await prisma.companyInfo.create({
-        data: { name, address, phone, bankName, bankAccUsd, bankAccSrd, bankAccEur },
+        data: { name, address, phone, email, website, bankName, bankAccUsd, bankAccSrd, bankAccEur },
       });
     }
 

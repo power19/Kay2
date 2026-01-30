@@ -86,8 +86,11 @@ model Customer {
 model CompanyInfo {
   id          String  @id @default(cuid())
   name        String
+  logo        String?
   address     String?
   phone       String?
+  email       String?
+  website     String?
   bankName    String?
   bankAccUsd  String?
   bankAccSrd  String?

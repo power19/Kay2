@@ -16,6 +16,7 @@ import {
   Boxes,
   ScanBarcode,
 } from "lucide-react";
+import { SidebarLogo } from "./sidebar-logo";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -29,9 +30,9 @@ const navigation = [
 ];
 
 const settingsNavigation = [
+  { name: "Company", href: "/settings/company", icon: Settings },
   { name: "Exchange Rate", href: "/settings/exchange-rate", icon: DollarSign },
   { name: "Liter Sizes", href: "/settings/liter-variations", icon: Ruler },
-  { name: "General", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -39,9 +40,7 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full w-64 flex-col bg-gray-900">
-      <div className="flex h-16 items-center justify-center border-b border-gray-800">
-        <h1 className="text-xl font-bold text-white">Omenbij</h1>
-      </div>
+      <SidebarLogo />
       <nav className="flex-1 space-y-1 px-2 py-4">
         {navigation.map((item) => {
           const isActive =
