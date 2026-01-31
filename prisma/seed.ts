@@ -3,26 +3,27 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Create default liter variations
-  const literVariations = [
-    { sizeInLiters: 1, label: "1L", isDrum: false },
-    { sizeInLiters: 4, label: "4L", isDrum: false },
-    { sizeInLiters: 5, label: "5L", isDrum: false },
-    { sizeInLiters: 10, label: "10L", isDrum: false },
-    { sizeInLiters: 20, label: "20L", isDrum: false },
-    { sizeInLiters: 25, label: "25L", isDrum: false },
-    { sizeInLiters: 60, label: "60L Drum", isDrum: true },
-    { sizeInLiters: 200, label: "200L Drum", isDrum: true },
+  // Create default specifications for electronics
+  const specifications = [
+    { value: "64GB", label: "64GB Storage", sortOrder: 1 },
+    { value: "128GB", label: "128GB Storage", sortOrder: 2 },
+    { value: "256GB", label: "256GB Storage", sortOrder: 3 },
+    { value: "512GB", label: "512GB Storage", sortOrder: 4 },
+    { value: "1TB", label: "1TB Storage", sortOrder: 5 },
+    { value: "Black", label: "Black", sortOrder: 10 },
+    { value: "White", label: "White", sortOrder: 11 },
+    { value: "Silver", label: "Silver", sortOrder: 12 },
+    { value: "Gold", label: "Gold", sortOrder: 13 },
   ];
 
-  for (const variation of literVariations) {
-    await prisma.literVariation.upsert({
-      where: { label: variation.label },
+  for (const spec of specifications) {
+    await prisma.specification.upsert({
+      where: { label: spec.label },
       update: {},
-      create: variation,
+      create: spec,
     });
   }
-  console.log("Created default liter variations");
+  console.log("Created default specifications");
 
   // Create initial exchange rate
   const existingRate = await prisma.exchangeRate.findFirst({
@@ -32,12 +33,28 @@ async function main() {
   if (!existingRate) {
     await prisma.exchangeRate.create({
       data: {
-        rateUsdToSrd: parseFloat(process.env.DEFAULT_EXCHANGE_RATE || "35.5"),
+        rateUsdToSrd: parseFloat(process.env.DEFAULT_EXCHANGE_RATE || "1.0"),
         isCurrent: true,
       },
     });
     console.log("Created initial exchange rate");
   }
+
+  // Create default storage locations
+  const locations = [
+    { name: "Storage Rack A", type: "storage", sortOrder: 1 },
+    { name: "Storage Rack B", type: "storage", sortOrder: 2 },
+    { name: "Main Display", type: "display", sortOrder: 1 },
+  ];
+
+  for (const location of locations) {
+    await prisma.storageLocation.upsert({
+      where: { name: location.name },
+      update: {},
+      create: location,
+    });
+  }
+  console.log("Created default storage locations");
 
   console.log("Seed completed successfully");
 }
