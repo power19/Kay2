@@ -56,7 +56,7 @@ type Variant = {
   barcode: string | null;
   stockQuantity: number;
   lowStockThreshold: number;
-  createdAt: string;
+  createdAt: Date;
   product: {
     id: string;
     name: string;
