@@ -7,7 +7,7 @@ export async function GET() {
       orderBy: [
         { product: { brand: { name: "asc" } } },
         { product: { name: "asc" } },
-        { specification: { sizeInLiters: "asc" } },
+        { specification: { sortOrder: "asc" } },
       ],
       include: {
         product: {

@@ -16,7 +16,7 @@ export async function GET(
             specification: true,
           },
           orderBy: {
-            specification: { sizeInLiters: "asc" },
+            specification: { sortOrder: "asc" },
           },
         },
       },

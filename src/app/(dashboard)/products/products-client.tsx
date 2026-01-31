@@ -40,7 +40,7 @@ type Brand = {
 type Specification = {
   id: string;
   label: string;
-  sizeInLiters: number;
+  value: string;
 };
 
 type ProductVariant = {
