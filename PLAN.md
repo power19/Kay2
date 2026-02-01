@@ -1,32 +1,70 @@
-# InvMan Electronics Inventory Management Application - Implementation Plan
+# InvMan - Electronics Inventory Management System
 
 ## Overview
 
-A simple, web-based inventory management system for an electronics distribution business that handles:
-- Inventory tracking with barcode scanning
-- Quote creation
-- Invoice creation
-- Currency conversion (USD stored, SRD displayed)
-- Cost price tracking with profit margin calculations
+A web-based inventory management system for electronics distribution businesses featuring:
+- **Barcode scanning** with on-the-fly product creation
+- **Location-based inventory** (storage racks vs display areas)
+- **Bulk receiving** workflow for incoming goods
+- **Quote and invoice** creation
+- **Cost price tracking** with profit margin calculations
+- **Currency conversion** (USD stored, SRD displayed)
+
+**Live URL**: https://kay2.powermental.fit
 
 ---
 
-## 1. Recommended Tech Stack
+## Tech Stack
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| **Framework** | Next.js 14 (App Router) | Single codebase for frontend and API, easy deployment |
-| **Language** | TypeScript | Type safety, better maintainability |
-| **UI Library** | Tailwind CSS + shadcn/ui | Rapid development, professional look |
-| **Database** | SQLite | No separate server, easy backup (just copy a file) |
-| **ORM** | Prisma | Type-safe queries, easy migrations |
-| **Auth** | Simple session-based | Single user doesn't need complex auth |
-| **Barcode** | html5-qrcode | Camera and hardware scanner support |
-| **Deployment** | Docker + Docker Compose | Easy VPS deployment |
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Framework | Next.js 16 (App Router) | Full-stack React framework |
+| Language | TypeScript | Type safety |
+| UI | Tailwind CSS + shadcn/ui | Professional UI components |
+| Database | SQLite + Prisma | Simple, file-based database |
+| Barcode | html5-qrcode | Camera and hardware scanner support |
+| Deployment | Docker + Caddy | Auto HTTPS, easy VPS deployment |
 
 ---
 
-## 2. Database Schema
+## Core Features
+
+### 1. Receive Goods (Bulk Receiving)
+The primary workflow for adding inventory:
+
+1. **Scan barcode** → If product exists, add to list
+2. **If barcode not found** → Create new product on-the-fly:
+   - Select or create brand
+   - Enter product name
+   - Select or create specification
+   - Set cost and sell prices
+3. **Adjust quantities** per item
+4. **Assign locations** (which rack/display area)
+5. **Submit** to update inventory
+
+### 2. Location-Based Inventory
+Track where items are stored:
+
+- **Storage locations** (e.g., Rack A, Rack B, Warehouse)
+- **Display locations** (e.g., Main Display, Window Display)
+- View totals: In Storage vs On Display
+- **Transfer** items between locations
+
+### 3. Product Management
+- **Brands** (Apple, Samsung, Sony, etc.)
+- **Products** with multiple variants
+- **Specifications** (128GB, 256GB, Black, White, etc.)
+- **Variants** = Product + Specification + Prices + Barcode
+
+### 4. Inventory Tracking
+- Real-time stock levels per location
+- Low stock alerts
+- Stock movement history
+- Cost value and profit calculations
+
+---
+
+## Database Schema
 
 ```
 ┌─────────────────┐       ┌─────────────────────┐       ┌──────────────────┐
@@ -35,9 +73,8 @@ A simple, web-based inventory management system for an electronics distribution 
 │ id (PK)         │───┐   │ id (PK)             │   ┌───│ id (PK)          │
 │ name            │   └──>│ brand_id (FK)       │   │   │ value            │
 │ description     │       │ name                │   │   │ label            │
-│ created_at      │       │ description         │   │   │ sort_order       │
-└─────────────────┘       └─────────────────────┘   │   └──────────────────┘
-                                   │               │
+└─────────────────┘       └─────────────────────┘   │   │ sort_order       │
+                                   │               │   └──────────────────┘
                          ┌─────────▼───────────────▼──┐
                          │    product_variants        │
                          ├────────────────────────────┤
@@ -45,531 +82,229 @@ A simple, web-based inventory management system for an electronics distribution 
                          │ product_id (FK)            │
                          │ specification_id (FK)      │
                          │ cost_price_usd             │◄─── Cost tracking
-                         │ price_usd                  │
-                         │ sku                        │
+                         │ price_usd                  │◄─── Sell price
                          │ barcode                    │◄─── Barcode scanning
-                         │ stock_quantity             │◄─── Inventory tracked here
+                         │ sku                        │
+                         │ stock_quantity             │◄─── Total stock
                          │ low_stock_threshold        │
                          └────────────────────────────┘
                                    │
-       ┌───────────────────────────┼───────────────────────────┐
-       │                           │                           │
-       ▼                           ▼                           ▼
-┌───────────────┐         ┌─────────────────┐         ┌─────────────────┐
-│  quote_items  │         │ invoice_items   │         │ stock_movements │
-└───────────────┘         └─────────────────┘         └─────────────────┘
-       │                           │
-       ▼                           ▼
-┌───────────────┐         ┌─────────────────┐         ┌─────────────────┐
-│    quotes     │         │    invoices     │         │   customers     │
-└───────────────┘         └─────────────────┘         └─────────────────┘
-
-                                                     ┌─────────────────┐
-                                                     │ exchange_rates  │
-                                                     ├─────────────────┤
-                                                     │ rate_usd_to_srd │
-                                                     │ is_current      │
-                                                     │ effective_date  │
-                                                     └─────────────────┘
-
-                                                     ┌─────────────────┐
-                                                     │  company_info   │
-                                                     ├─────────────────┤
-                                                     │ name            │
-                                                     │ logo            │
-                                                     │ address         │
-                                                     │ phone           │
-                                                     │ email           │
-                                                     │ website         │
-                                                     └─────────────────┘
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+              ▼                    ▼                    ▼
+┌──────────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   variant_locations  │  │ stock_movements │  │  quote_items /  │
+├──────────────────────┤  ├─────────────────┤  │  invoice_items  │
+│ variant_id (FK)      │  │ variant_id (FK) │  └─────────────────┘
+│ location_id (FK)     │  │ from_location   │
+│ quantity             │  │ to_location     │
+└──────────────────────┘  │ quantity_change │
+              │           │ type (purchase, │
+              │           │   sale, transfer│
+              ▼           │   adjustment)   │
+┌──────────────────────┐  └─────────────────┘
+│  storage_locations   │
+├──────────────────────┤
+│ id (PK)              │
+│ name                 │◄─── "Rack A", "Main Display"
+│ type                 │◄─── "storage" or "display"
+│ sort_order           │
+└──────────────────────┘
 ```
 
-### Prisma Schema
+### Key Models
 
 ```prisma
-generator client {
-  provider = "prisma-client-js"
+model StorageLocation {
+  id           String            @id @default(cuid())
+  name         String            @unique
+  type         String            @default("storage") // "storage" or "display"
+  description  String?
+  sortOrder    Int               @default(0)
+  variantStock VariantLocation[]
+  movementsFrom StockMovement[]  @relation("FromLocation")
+  movementsTo   StockMovement[]  @relation("ToLocation")
 }
 
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
+model VariantLocation {
+  id         String          @id @default(cuid())
+  variant    ProductVariant  @relation(...)
+  variantId  String
+  location   StorageLocation @relation(...)
+  locationId String
+  quantity   Int             @default(0)
 
-model Brand {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  description String?
-  products    Product[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-model Specification {
-  id              String           @id @default(cuid())
-  value           String           // e.g., "storage", "color", "size"
-  label           String           @unique  // e.g., "128GB", "256GB", "Black", "White"
-  sortOrder       Int              @default(0)
-  productVariants ProductVariant[]
-  createdAt       DateTime         @default(now())
-}
-
-model Product {
-  id          String           @id @default(cuid())
-  name        String
-  description String?
-  brand       Brand            @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  brandId     String
-  variants    ProductVariant[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  @@unique([brandId, name])
-}
-
-model ProductVariant {
-  id                String          @id @default(cuid())
-  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId         String
-  specification     Specification   @relation(fields: [specificationId], references: [id])
-  specificationId   String
-  costPriceUsd      Float           @default(0)
-  priceUsd          Float
-  sku               String?         @unique
-  barcode           String?         @unique
-  stockQuantity     Int             @default(0)
-  lowStockThreshold Int             @default(10)
-  quoteItems        QuoteItem[]
-  invoiceItems      InvoiceItem[]
-  stockMovements    StockMovement[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-
-  @@unique([productId, specificationId])
+  @@unique([variantId, locationId])
 }
 
 model StockMovement {
-  id             String         @id @default(cuid())
-  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  id             String           @id @default(cuid())
+  variant        ProductVariant   @relation(...)
   variantId      String
-  quantityChange Int            // positive for additions, negative for reductions
-  type           String         // "purchase", "sale", "adjustment", "return"
+  fromLocation   StorageLocation? @relation("FromLocation", ...)
+  fromLocationId String?
+  toLocation     StorageLocation? @relation("ToLocation", ...)
+  toLocationId   String?
+  quantityChange Int
+  type           String           // "purchase", "sale", "adjustment", "transfer"
   reference      String?
   notes          String?
-  createdAt      DateTime       @default(now())
-}
-
-model Customer {
-  id           String    @id @default(cuid())
-  customerCode String?   @unique
-  name         String
-  companyName  String?
-  email        String?
-  phone        String?
-  address      String?
-  quotes       Quote[]
-  invoices     Invoice[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-}
-
-model CompanyInfo {
-  id          String  @id @default(cuid())
-  name        String
-  logo        String? // Base64 encoded image
-  address     String?
-  phone       String?
-  email       String?
-  website     String?
-  bankName    String?
-  bankAccUsd  String?
-  bankAccSrd  String?
-  bankAccEur  String?
-}
-
-model ExchangeRate {
-  id            String   @id @default(cuid())
-  rateUsdToSrd  Float
-  isCurrent     Boolean  @default(false)
-  effectiveDate DateTime @default(now())
-  createdAt     DateTime @default(now())
-}
-
-model Quote {
-  id           String      @id @default(cuid())
-  quoteNumber  String      @unique
-  customer     Customer    @relation(fields: [customerId], references: [id])
-  customerId   String
-  exchangeRate Float       // Snapshot at quote creation
-  items        QuoteItem[]
-  subtotalUsd  Float
-  totalUsd     Float
-  status       String      @default("draft") // draft, sent, accepted, rejected, expired
-  validUntil   DateTime?
-  notes        String?
-  invoices     Invoice[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-}
-
-model QuoteItem {
-  id           String         @id @default(cuid())
-  quote        Quote          @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  quoteId      String
-  variant      ProductVariant @relation(fields: [variantId], references: [id])
-  variantId    String
-  quantity     Int
-  unitPriceUsd Float
-  createdAt    DateTime       @default(now())
-}
-
-model Invoice {
-  id              String        @id @default(cuid())
-  invoiceNumber   String        @unique
-  customer        Customer      @relation(fields: [customerId], references: [id])
-  customerId      String
-  quote           Quote?        @relation(fields: [quoteId], references: [id])
-  quoteId         String?
-  exchangeRate    Float
-  items           InvoiceItem[]
-  subtotalUsd     Float
-  discountPercent Float         @default(0)
-  discountUsd     Float         @default(0)
-  taxRate         Float         @default(0)
-  taxAmountUsd    Float         @default(0)
-  totalUsd        Float
-  status          String        @default("draft") // draft, sent, paid, overdue, cancelled
-  paymentTerms    String        @default("CASH/BANK")
-  dueDate         DateTime?
-  paidDate        DateTime?
-  notes           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-}
-
-model InvoiceItem {
-  id           String         @id @default(cuid())
-  invoice      Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  invoiceId    String
-  variant      ProductVariant @relation(fields: [variantId], references: [id])
-  variantId    String
-  quantity     Int
-  unitPriceUsd Float
-  createdAt    DateTime       @default(now())
-}
-
-model Setting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
-  updatedAt DateTime @updatedAt
 }
 ```
 
 ---
 
-## 3. Feature Breakdown with Priority
-
-### Phase 1: Foundation (MVP)
-
-| Priority | Feature | Description |
-|----------|---------|-------------|
-| P0 | Project Setup | Next.js, Prisma, Tailwind, shadcn/ui |
-| P0 | Database Schema | Prisma schema with migrations |
-| P0 | Simple Auth | Session-based login with single admin user |
-| P0 | Brand Management | CRUD for brands (Apple, Samsung, Sony, etc.) |
-| P0 | Specifications | CRUD for specifications (128GB, 256GB, Black, White, etc.) |
-| P0 | Product Management | CRUD for products with brand association |
-| P0 | Product Variants | Create variants (product + specification + prices) |
-
-### Phase 2: Core Business Features
-
-| Priority | Feature | Description |
-|----------|---------|-------------|
-| P0 | Exchange Rate Management | Set/update USD to SRD rate |
-| P0 | Currency Display | Show prices in both USD and SRD |
-| P0 | Inventory Tracking | View stock levels, manual adjustments |
-| P0 | Stock Movements | Track history of stock changes |
-| P0 | Barcode Scanning | Camera and hardware scanner support |
-| P0 | Cost Price Tracking | Track cost vs sell price with margins |
-| P1 | Low Stock Alerts | Visual indicators for low inventory |
-
-### Phase 3: Quotes & Invoices
-
-| Priority | Feature | Description |
-|----------|---------|-------------|
-| P0 | Customer Management | CRUD for customers |
-| P0 | Quote Creation | Create quotes with line items |
-| P0 | Quote Status Management | Draft, Sent, Accepted, Rejected, Expired |
-| P0 | Invoice Creation | Create invoices (standalone or from quote) |
-| P0 | Invoice Status Management | Draft, Sent, Paid, Overdue, Cancelled |
-| P0 | Barcode Scanning in Forms | Scan to add items to quotes/invoices |
-| P1 | Convert Quote to Invoice | One-click conversion |
-
-### Phase 4: Polish & Extras
-
-| Priority | Feature | Description |
-|----------|---------|-------------|
-| P0 | Company Branding | Logo upload, company info display |
-| P1 | Dashboard | Overview with key metrics |
-| P1 | Print/PDF Export | Print-friendly views |
-| P2 | Quick Scan Mode | Dedicated page for receiving/selling |
-| P2 | Reporting Module | Sales and inventory reports |
-| P2 | Docker Setup | Dockerfile and docker-compose.yml |
-
----
-
-## 4. File/Folder Structure
-
-```
-invman/
-├── .env.example
-├── docker-compose.yml
-├── Dockerfile
-├── next.config.js
-├── package.json
-├── tailwind.config.ts
-│
-├── prisma/
-│   ├── schema.prisma
-│   ├── seed.ts
-│   └── migrations/
-│
-├── data/                         # SQLite database (Docker volume)
-│
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx              # Dashboard
-│   │   ├── globals.css
-│   │   │
-│   │   ├── (auth)/
-│   │   │   └── login/page.tsx
-│   │   │
-│   │   ├── (dashboard)/
-│   │   │   ├── layout.tsx        # Sidebar layout
-│   │   │   ├── inventory/
-│   │   │   ├── products/
-│   │   │   ├── brands/
-│   │   │   ├── customers/
-│   │   │   ├── quotes/
-│   │   │   ├── invoices/
-│   │   │   ├── scan/             # Quick scan mode
-│   │   │   └── settings/
-│   │   │       ├── company/
-│   │   │       ├── specifications/
-│   │   │       └── exchange-rate/
-│   │   │
-│   │   └── api/
-│   │       ├── auth/
-│   │       ├── barcode/          # Barcode lookup
-│   │       ├── brands/
-│   │       ├── specifications/
-│   │       ├── products/
-│   │       ├── inventory/
-│   │       ├── customers/
-│   │       ├── quotes/
-│   │       ├── invoices/
-│   │       ├── exchange-rate/
-│   │       ├── company/
-│   │       └── settings/
-│   │
-│   ├── components/
-│   │   ├── ui/                   # shadcn/ui components
-│   │   ├── layout/               # Sidebar, Header, Logo
-│   │   ├── forms/                # All form components
-│   │   ├── tables/               # Data tables
-│   │   └── shared/               # Currency display, badges, barcode scanner
-│   │
-│   ├── lib/
-│   │   ├── prisma.ts
-│   │   ├── auth.ts
-│   │   ├── currency.ts
-│   │   ├── utils.ts
-│   │   └── validations/
-│   │
-│   ├── services/                 # Business logic
-│   │
-│   ├── hooks/
-│   │
-│   └── types/
-│
-└── public/
-```
-
----
-
-## 5. Navigation Structure (Sidebar)
+## Navigation Structure
 
 ```
 Dashboard
----
-Quick Scan                        # Fast receive/sell mode
----
-Inventory
-  - Overview
-  - Stock Movements
----
-Products
-  - All Products
-  - Brands
----
-Sales
-  - Quotes
-  - Invoices
-  - Customers
----
+─────────────────
+Quick Scan              # Fast barcode lookup
+Receive Goods           # Bulk receiving workflow ★
+Inventory               # Stock levels with location breakdown
+─────────────────
+Products                # Product catalog
+Brands                  # Brand management
+─────────────────
+Quotes                  # Quote creation
+Invoices                # Invoice management
+Customers               # Customer database
+─────────────────
 Settings
-  - Company Info
-  - Exchange Rate
-  - Specifications
+  ├── Company           # Company info, logo
+  ├── Exchange Rate     # USD to SRD rate
+  ├── Specifications    # 128GB, Black, etc.
+  └── Locations         # Storage racks, display areas
 ```
 
 ---
 
-## 6. Key Implementation Details
+## API Endpoints
 
-### Currency Handling
+### Receiving
+- `POST /api/receiving` - Bulk receive items with location assignment
+- `POST /api/receiving/create-product` - Create product on-the-fly during receiving
 
-```typescript
-// src/lib/currency.ts
-export function convertUsdToSrd(usdAmount: number, exchangeRate: number): number {
-  return usdAmount * exchangeRate;
-}
+### Barcode
+- `GET /api/barcode?code=XXX` - Lookup by barcode or SKU
+  - Returns product if found
+  - Returns `{ found: false, code }` if not found (triggers create dialog)
 
-export function formatUsd(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-}
+### Locations
+- `GET /api/locations` - List all locations with item counts
+- `POST /api/locations` - Create new location
+- `PUT /api/locations/[id]` - Update location
+- `DELETE /api/locations/[id]` - Delete (only if empty)
 
-export function formatSrd(amount: number): string {
-  return new Intl.NumberFormat('nl-SR', {
-    style: 'currency',
-    currency: 'SRD',
-  }).format(amount);
-}
-```
-
-### Barcode Scanner Component
-
-```typescript
-// Uses html5-qrcode for camera scanning
-// Also supports hardware scanner input (keyboard mode)
-// Works on mobile phones and desktop
-```
-
-### Profit Margin Calculation
-
-```typescript
-// Calculate profit margin from cost and sell price
-const margin = costPrice > 0
-  ? ((sellPrice - costPrice) / costPrice * 100)
-  : 0;
-```
-
-### Quote/Invoice Number Generation
-
-```typescript
-// Format: Q-2026-00001 / INV-2026-00001
-async function generateQuoteNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const lastQuote = await prisma.quote.findFirst({
-    where: { quoteNumber: { startsWith: `Q-${year}-` } },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  const sequence = lastQuote
-    ? parseInt(lastQuote.quoteNumber.split('-')[2]) + 1
-    : 1;
-
-  return `Q-${year}-${sequence.toString().padStart(5, '0')}`;
-}
-```
+### Inventory
+- `GET /api/inventory` - List all variants with stock
+- `POST /api/inventory/[variantId]` - Adjust stock (add/remove/transfer)
 
 ---
 
-## 7. Environment Variables
+## Deployment
 
-```bash
-# .env.example
-DATABASE_URL="file:./data/inventory.db"
-AUTH_SECRET="your-secret-key-min-32-chars-long"
-ADMIN_PASSWORD="your-secure-admin-password"
-DEFAULT_EXCHANGE_RATE="35.5"
-```
-
----
-
-## 8. Docker Configuration
-
-```dockerfile
-# Dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npx prisma generate
-RUN npm run build
-
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-
-EXPOSE 3000
-CMD ["node", "server.js"]
-```
+### Docker Compose Setup
 
 ```yaml
-# docker-compose.yml
-version: '3.8'
 services:
-  app:
+  invman:
     build: .
-    ports:
-      - "3000:3000"
+    container_name: invman
     environment:
-      - DATABASE_URL=file:/app/data/inventory.db
-      - AUTH_SECRET=${AUTH_SECRET}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      DATABASE_URL: file:/app/data/prod.db
+      AUTH_SECRET: ${AUTH_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     volumes:
-      - ./data:/app/data
-    restart: unless-stopped
+      - invman-data:/app/data
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+```
+
+### Caddyfile
+```
+kay2.powermental.fit {
+    reverse_proxy invman:3000
+}
+```
+
+### Deploy Commands
+```bash
+# On VPS
+cd /opt/invman
+git pull origin claude/clone-external-repo-jn02y
+docker compose up -d --build
+
+# View logs
+docker compose logs -f invman
 ```
 
 ---
 
-## 9. Example Specifications for Electronics
+## Environment Variables
 
-| Label | Value | Use Case |
-|-------|-------|----------|
-| 128GB | storage | iPhone, Samsung storage options |
-| 256GB | storage | iPhone, Samsung storage options |
-| 512GB | storage | iPhone, Samsung storage options |
-| 1TB | storage | iPhone Pro Max, laptops |
-| Black | color | Any device color variant |
-| White | color | Any device color variant |
-| Silver | color | MacBook, iPhone colors |
-| Space Gray | color | MacBook, iPhone colors |
-| Small | size | Accessories, cases |
-| Medium | size | Accessories, cases |
-| Large | size | Accessories, cases |
+```bash
+DATABASE_URL="file:/app/data/prod.db"
+AUTH_SECRET="your-secret-key-min-32-chars"
+ADMIN_PASSWORD="your-admin-password"
+DEFAULT_EXCHANGE_RATE="1.0"
+```
+
+---
+
+## Typical Workflows
+
+### Receiving New Inventory
+1. Go to **Receive Goods**
+2. Set default location (e.g., "Storage Rack A")
+3. Scan each item's barcode
+   - Known items: added to list automatically
+   - Unknown items: create product dialog appears
+4. Adjust quantities if needed
+5. Change locations per item if needed
+6. Click **Receive Items**
+
+### Moving Items to Display
+1. Go to **Inventory**
+2. Click on an item row to expand
+3. Click **Transfer**
+4. Select from location → to location
+5. Enter quantity
+6. Confirm
+
+### Quick Price Check
+1. Go to **Quick Scan**
+2. Scan barcode
+3. See product details, stock levels, prices
+
+---
+
+## Default Seed Data
+
+### Specifications
+- 64GB, 128GB, 256GB, 512GB, 1TB (storage)
+- Black, White, Silver, Gold (colors)
+
+### Storage Locations
+- Storage Rack A (storage)
+- Storage Rack B (storage)
+- Main Display (display)
 
 ---
 
 ## Summary
 
-A simple, practical inventory management system for electronics using:
-- **Next.js + SQLite + Prisma** - Full-stack simplicity
-- **Single-user auth** - Appropriate for small business
-- **USD storage, SRD display** - Clean currency handling
-- **Barcode scanning** - Phone camera or hardware scanner
-- **Cost/Sell price tracking** - Profit margin calculations
-- **Docker-ready** - Easy VPS deployment
-- **shadcn/ui** - Professional UI with minimal effort
+InvMan is a practical inventory system built for electronics retailers who need:
+- Fast barcode-based receiving
+- Location tracking (know where everything is)
+- On-the-fly product creation (no pre-setup needed)
+- Simple Docker deployment with automatic HTTPS
