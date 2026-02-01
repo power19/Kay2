@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     let finalBrandId = brandId;
     if (!brandId && newBrandName) {
       const existingBrand = await prisma.brand.findFirst({
-        where: { name: { equals: newBrandName, mode: "insensitive" } },
+        where: { name: newBrandName },
       });
 
       if (existingBrand) {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     let finalSpecificationId = specificationId;
     if (!specificationId && newSpecLabel && newSpecValue) {
       const existingSpec = await prisma.specification.findFirst({
-        where: { label: { equals: newSpecLabel, mode: "insensitive" } },
+        where: { label: newSpecLabel },
       });
 
       if (existingSpec) {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     // Check if product with same name exists for this brand
     let product = await prisma.product.findFirst({
       where: {
-        name: { equals: productName, mode: "insensitive" },
+        name: productName,
         brandId: finalBrandId,
       },
     });
