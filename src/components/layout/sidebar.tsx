@@ -17,11 +17,13 @@ import {
   PackagePlus,
   Warehouse,
   Settings2,
+  ShoppingCart,
 } from "lucide-react";
 import { SidebarLogo } from "./sidebar-logo";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "POS", href: "/pos", icon: ShoppingCart },
   { name: "Quick Scan", href: "/scan", icon: ScanBarcode },
   { name: "Receive Goods", href: "/receiving", icon: PackagePlus },
   { name: "Inventory", href: "/inventory", icon: Boxes },
