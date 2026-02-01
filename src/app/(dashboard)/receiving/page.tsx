@@ -3,34 +3,29 @@ import { ReceivingClient } from "./receiving-client";
 
 export const dynamic = "force-dynamic";
 
-async function getVariants() {
-  return prisma.productVariant.findMany({
-    orderBy: [
-      { product: { brand: { name: "asc" } } },
-      { product: { name: "asc" } },
-      { specification: { sortOrder: "asc" } },
-    ],
-    include: {
-      product: {
-        include: {
-          brand: true,
-        },
-      },
-      specification: true,
-    },
-  });
-}
-
 async function getLocations() {
   return prisma.storageLocation.findMany({
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
   });
 }
 
+async function getBrands() {
+  return prisma.brand.findMany({
+    orderBy: { name: "asc" },
+  });
+}
+
+async function getSpecifications() {
+  return prisma.specification.findMany({
+    orderBy: { sortOrder: "asc" },
+  });
+}
+
 export default async function ReceivingPage() {
-  const [variants, locations] = await Promise.all([
-    getVariants(),
+  const [locations, brands, specifications] = await Promise.all([
     getLocations(),
+    getBrands(),
+    getSpecifications(),
   ]);
 
   return (
@@ -41,7 +36,11 @@ export default async function ReceivingPage() {
           Scan items as they arrive, then allocate to storage locations
         </p>
       </div>
-      <ReceivingClient variants={variants} locations={locations} />
+      <ReceivingClient
+        locations={locations}
+        brands={brands}
+        specifications={specifications}
+      />
     </div>
   );
 }

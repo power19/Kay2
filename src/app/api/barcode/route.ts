@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
 
     if (!variant) {
       return NextResponse.json(
-        { error: "Product not found", code },
-        { status: 404 }
+        { found: false, code },
+        { status: 200 }
       );
     }
 

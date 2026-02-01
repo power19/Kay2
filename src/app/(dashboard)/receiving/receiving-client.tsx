@@ -20,6 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -37,12 +43,29 @@ import {
 import { formatUsd } from "@/lib/currency";
 import { BarcodeScanner } from "@/components/shared/barcode-scanner";
 
-type Variant = {
+type Location = {
   id: string;
+  name: string;
+  type: string;
+};
+
+type Brand = {
+  id: string;
+  name: string;
+};
+
+type Specification = {
+  id: string;
+  label: string;
+  value: string;
+};
+
+type ScannedVariant = {
+  id: string;
+  barcode: string | null;
+  sku: string | null;
   costPriceUsd: number;
   priceUsd: number;
-  sku: string | null;
-  barcode: string | null;
   stockQuantity: number;
   product: {
     id: string;
@@ -59,24 +82,20 @@ type Variant = {
   };
 };
 
-type Location = {
-  id: string;
-  name: string;
-  type: string;
-};
-
 type ScannedItem = {
-  variant: Variant;
+  variant: ScannedVariant;
   quantity: number;
   locationId: string;
 };
 
 export function ReceivingClient({
-  variants,
   locations,
+  brands,
+  specifications,
 }: {
-  variants: Variant[];
   locations: Location[];
+  brands: Brand[];
+  specifications: Specification[];
 }) {
   const router = useRouter();
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
@@ -85,9 +104,22 @@ export function ReceivingClient({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [defaultLocationId, setDefaultLocationId] = useState("");
-  const [selectedVariantId, setSelectedVariantId] = useState("");
 
-  // Get default storage location
+  // Create new product dialog state
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState("");
+  const [createForm, setCreateForm] = useState({
+    brandId: "",
+    newBrandName: "",
+    productName: "",
+    specificationId: "",
+    newSpecLabel: "",
+    newSpecValue: "",
+    costPriceUsd: "",
+    priceUsd: "",
+  });
+  const [isCreating, setIsCreating] = useState(false);
+
   const storageLocations = locations.filter((l) => l.type === "storage");
   const displayLocations = locations.filter((l) => l.type === "display");
 
@@ -97,8 +129,26 @@ export function ReceivingClient({
       const res = await fetch(`/api/barcode?code=${encodeURIComponent(barcode)}`);
       const data = await res.json();
 
+      if (data.found === false) {
+        // Product not found - show create dialog
+        setScannedBarcode(barcode);
+        setCreateForm({
+          brandId: "",
+          newBrandName: "",
+          productName: "",
+          specificationId: "",
+          newSpecLabel: "",
+          newSpecValue: "",
+          costPriceUsd: "",
+          priceUsd: "",
+        });
+        setShowCreateDialog(true);
+        toast.info(`Barcode "${barcode}" not found. Create a new product.`);
+        return;
+      }
+
       if (!res.ok) {
-        toast.error(data.error || "Product not found");
+        toast.error(data.error || "Failed to lookup barcode");
         return;
       }
 
@@ -110,12 +160,11 @@ export function ReceivingClient({
     }
   };
 
-  const addItemToList = (variant: Variant) => {
+  const addItemToList = (variant: ScannedVariant) => {
     setScannedItems((prev) => {
       const existingIndex = prev.findIndex((item) => item.variant.id === variant.id);
 
       if (existingIndex >= 0) {
-        // Increment quantity if already in list
         const updated = [...prev];
         updated[existingIndex] = {
           ...updated[existingIndex],
@@ -124,7 +173,6 @@ export function ReceivingClient({
         toast.success(`+1 ${variant.product.brand.name} - ${variant.product.name} (${updated[existingIndex].quantity} total)`);
         return updated;
       } else {
-        // Add new item
         toast.success(`Added: ${variant.product.brand.name} - ${variant.product.name}`);
         return [
           ...prev,
@@ -138,12 +186,59 @@ export function ReceivingClient({
     });
   };
 
-  const addManualItem = () => {
-    if (!selectedVariantId) return;
-    const variant = variants.find((v) => v.id === selectedVariantId);
-    if (variant) {
-      addItemToList(variant);
-      setSelectedVariantId("");
+  const handleCreateProduct = async () => {
+    // Validation
+    if (!createForm.brandId && !createForm.newBrandName.trim()) {
+      toast.error("Brand is required");
+      return;
+    }
+    if (!createForm.productName.trim()) {
+      toast.error("Product name is required");
+      return;
+    }
+    if (!createForm.specificationId && (!createForm.newSpecLabel.trim() || !createForm.newSpecValue.trim())) {
+      toast.error("Specification is required");
+      return;
+    }
+    const costPrice = parseFloat(createForm.costPriceUsd) || 0;
+    const sellPrice = parseFloat(createForm.priceUsd);
+    if (isNaN(sellPrice) || sellPrice < 0) {
+      toast.error("Valid sell price is required");
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const res = await fetch("/api/receiving/create-product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          barcode: scannedBarcode,
+          brandId: createForm.brandId || null,
+          newBrandName: createForm.newBrandName.trim() || null,
+          productName: createForm.productName.trim(),
+          specificationId: createForm.specificationId || null,
+          newSpecLabel: createForm.newSpecLabel.trim() || null,
+          newSpecValue: createForm.newSpecValue.trim() || null,
+          costPriceUsd: costPrice,
+          priceUsd: sellPrice,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create product");
+      }
+
+      toast.success("Product created successfully");
+      setShowCreateDialog(false);
+      addItemToList(data.variant);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create product");
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -202,7 +297,6 @@ export function ReceivingClient({
       return;
     }
 
-    // Check for items without locations
     const itemsWithoutLocation = scannedItems.filter((item) => !item.locationId);
     if (itemsWithoutLocation.length > 0) {
       toast.error(`${itemsWithoutLocation.length} item(s) need a location assigned`);
@@ -241,20 +335,169 @@ export function ReceivingClient({
     }
   };
 
-  // Calculate totals
   const totalItems = scannedItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalCostValue = scannedItems.reduce(
     (sum, item) => sum + item.variant.costPriceUsd * item.quantity,
     0
   );
 
-  // Available variants (not already in list)
-  const availableVariants = variants.filter(
-    (v) => !scannedItems.some((item) => item.variant.id === v.id)
-  );
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Create Product Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Product</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-2 bg-muted rounded text-sm font-mono">
+              Barcode: {scannedBarcode}
+            </div>
+
+            {/* Brand Selection */}
+            <div className="space-y-2">
+              <Label>Brand *</Label>
+              <Select
+                value={createForm.brandId}
+                onValueChange={(value) =>
+                  setCreateForm({ ...createForm, brandId: value, newBrandName: "" })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select existing brand" />
+                </SelectTrigger>
+                <SelectContent>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-center text-sm text-muted-foreground">or</div>
+              <Input
+                placeholder="Enter new brand name"
+                value={createForm.newBrandName}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, newBrandName: e.target.value, brandId: "" })
+                }
+              />
+            </div>
+
+            {/* Product Name */}
+            <div className="space-y-2">
+              <Label>Product Name *</Label>
+              <Input
+                placeholder="e.g., iPhone 15 Pro"
+                value={createForm.productName}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, productName: e.target.value })
+                }
+              />
+            </div>
+
+            {/* Specification Selection */}
+            <div className="space-y-2">
+              <Label>Specification *</Label>
+              <Select
+                value={createForm.specificationId}
+                onValueChange={(value) =>
+                  setCreateForm({
+                    ...createForm,
+                    specificationId: value,
+                    newSpecLabel: "",
+                    newSpecValue: "",
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select existing spec" />
+                </SelectTrigger>
+                <SelectContent>
+                  {specifications.map((spec) => (
+                    <SelectItem key={spec.id} value={spec.id}>
+                      {spec.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-center text-sm text-muted-foreground">or create new</div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Label (e.g., 256GB)"
+                  value={createForm.newSpecLabel}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      newSpecLabel: e.target.value,
+                      specificationId: "",
+                    })
+                  }
+                />
+                <Input
+                  placeholder="Value (e.g., 256GB)"
+                  value={createForm.newSpecValue}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      newSpecValue: e.target.value,
+                      specificationId: "",
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Prices */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cost Price (USD)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={createForm.costPriceUsd}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, costPriceUsd: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Sell Price (USD) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={createForm.priceUsd}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, priceUsd: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateDialog(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateProduct}
+                disabled={isCreating}
+                className="flex-1"
+              >
+                {isCreating ? "Creating..." : "Create & Add"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Left Column - Scanner and Item List */}
       <div className="lg:col-span-2 space-y-4">
         {/* Scanner Section */}
@@ -268,35 +511,19 @@ export function ReceivingClient({
           <CardContent className="space-y-4">
             <BarcodeScanner
               onScan={handleBarcodeScan}
-              placeholder="Scan barcode to add item..."
+              placeholder="Scan barcode or SKU..."
             />
             {scannerLoading && (
               <p className="text-sm text-muted-foreground">Looking up...</p>
             )}
 
-            <div className="flex items-center gap-2 pt-2">
-              <span className="text-sm text-muted-foreground">Or add manually:</span>
-              <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select a product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableVariants.map((variant) => (
-                    <SelectItem key={variant.id} value={variant.id}>
-                      {variant.product.brand.name} - {variant.product.name} ({variant.specification.label})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={addManualItem} disabled={!selectedVariantId}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-
             {/* Default location for new scans */}
             <div className="flex items-center gap-2 border-t pt-4">
-              <Label className="text-sm whitespace-nowrap">Default location for new items:</Label>
-              <Select value={defaultLocationId || "none"} onValueChange={(v) => setDefaultLocationId(v === "none" ? "" : v)}>
+              <Label className="text-sm whitespace-nowrap">Default location:</Label>
+              <Select
+                value={defaultLocationId || "none"}
+                onValueChange={(v) => setDefaultLocationId(v === "none" ? "" : v)}
+              >
                 <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Select default location" />
                 </SelectTrigger>
@@ -356,7 +583,7 @@ export function ReceivingClient({
                   </Select>
                   <Button variant="outline" size="sm" onClick={clearAll}>
                     <Trash2 className="h-4 w-4 mr-1" />
-                    Clear All
+                    Clear
                   </Button>
                 </div>
               )}
@@ -367,7 +594,7 @@ export function ReceivingClient({
               <div className="text-center py-8 text-muted-foreground">
                 <ScanBarcode className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No items scanned yet</p>
-                <p className="text-sm">Start scanning barcodes to add items</p>
+                <p className="text-sm">Scan barcodes to add items. New products will be created automatically.</p>
               </div>
             ) : (
               <Table>
@@ -537,7 +764,7 @@ export function ReceivingClient({
           </CardContent>
         </Card>
 
-        {/* Quick Stats */}
+        {/* Location Breakdown */}
         {scannedItems.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
