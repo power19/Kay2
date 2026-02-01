@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,8 @@ import {
   X,
   User,
   Check,
+  Search,
+  Package,
 } from "lucide-react";
 import { formatUsd } from "@/lib/currency";
 import { BarcodeScanner } from "@/components/shared/barcode-scanner";
@@ -58,7 +60,7 @@ type Customer = {
   companyName: string | null;
 };
 
-type CartVariant = {
+type ProductVariant = {
   id: string;
   barcode: string | null;
   sku: string | null;
@@ -81,7 +83,7 @@ type CartVariant = {
 };
 
 type CartItem = {
-  variant: CartVariant;
+  variant: ProductVariant;
   quantity: number;
   unitPrice: number;
 };
@@ -90,10 +92,12 @@ export function POSClient({
   exchangeRate,
   locations,
   customers,
+  products,
 }: {
   exchangeRate: number;
   locations: Location[];
   customers: Customer[];
+  products: ProductVariant[];
 }) {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -105,8 +109,33 @@ export function POSClient({
   const [discountPercent, setDiscountPercent] = useState(0);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [amountReceived, setAmountReceived] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter products based on search
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return products;
+    const query = searchQuery.toLowerCase();
+    return products.filter(
+      (p) =>
+        p.product.name.toLowerCase().includes(query) ||
+        p.product.brand.name.toLowerCase().includes(query) ||
+        p.specification.label.toLowerCase().includes(query) ||
+        p.barcode?.toLowerCase().includes(query) ||
+        p.sku?.toLowerCase().includes(query)
+    );
+  }, [products, searchQuery]);
 
   const handleBarcodeScan = async (barcode: string) => {
+    // First try to find in local products
+    const localProduct = products.find(
+      (p) => p.barcode === barcode || p.sku === barcode
+    );
+    if (localProduct) {
+      addToCart(localProduct);
+      return;
+    }
+
+    // Fall back to API lookup
     setScannerLoading(true);
     try {
       const res = await fetch(`/api/barcode?code=${encodeURIComponent(barcode)}`);
@@ -130,7 +159,7 @@ export function POSClient({
     }
   };
 
-  const addToCart = (variant: CartVariant) => {
+  const addToCart = (variant: ProductVariant) => {
     setCartItems((prev) => {
       const existingIndex = prev.findIndex((item) => item.variant.id === variant.id);
 
@@ -274,7 +303,7 @@ export function POSClient({
   const change = parseFloat(amountReceived) - total;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
@@ -361,109 +390,151 @@ export function POSClient({
         </DialogContent>
       </Dialog>
 
-      {/* Left: Scanner and Cart */}
-      <div className="lg:col-span-2 flex flex-col gap-4">
-        {/* Scanner */}
+      {/* Left: Products Grid */}
+      <div className="lg:col-span-5 flex flex-col gap-4">
+        {/* Search and Scanner */}
         <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <BarcodeScanner
-                  onScan={handleBarcodeScan}
-                  placeholder="Scan item barcode..."
-                  autoFocus
-                />
-              </div>
-              {locations.length > 1 && (
-                <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <ScanBarcode className="h-5 w-5 text-muted-foreground" />
+              <BarcodeScanner
+                onScan={handleBarcodeScan}
+                placeholder="Scan barcode..."
+                autoFocus
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Search className="h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
             {scannerLoading && (
-              <p className="text-sm text-muted-foreground mt-2">Looking up...</p>
+              <p className="text-sm text-muted-foreground">Looking up...</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Cart Items */}
+        {/* Products Grid */}
+        <Card className="flex-1 overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Products ({filteredProducts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-auto" style={{ maxHeight: "calc(100vh - 18rem)" }}>
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p>No products found</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {filteredProducts.map((product) => {
+                  const inCart = cartItems.find((i) => i.variant.id === product.id);
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => addToCart(product)}
+                      className="p-3 text-left border rounded-lg hover:bg-accent hover:border-primary transition-colors relative"
+                    >
+                      {inCart && (
+                        <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center">
+                          {inCart.quantity}
+                        </Badge>
+                      )}
+                      <p className="font-medium text-sm truncate">{product.product.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {product.product.brand.name} • {product.specification.label}
+                      </p>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="font-bold text-sm">{formatUsd(product.priceUsd)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Stock: {product.stockQuantity}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Middle: Cart */}
+      <div className="lg:col-span-4 flex flex-col gap-4">
         <Card className="flex-1 overflow-hidden">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5" />
-                Cart ({totalItems} items)
+                Cart ({totalItems})
               </CardTitle>
               {cartItems.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={clearCart}>
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Clear
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               )}
             </div>
           </CardHeader>
-          <CardContent className="overflow-auto" style={{ maxHeight: "calc(100vh - 22rem)" }}>
+          <CardContent className="overflow-auto" style={{ maxHeight: "calc(100vh - 14rem)" }}>
             {cartItems.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <ScanBarcode className="h-16 w-16 mx-auto mb-3 opacity-30" />
-                <p className="text-lg">Cart is empty</p>
-                <p className="text-sm">Scan items to add them</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <ShoppingCart className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p>Cart is empty</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead className="w-[120px]">Qty</TableHead>
-                    <TableHead className="w-[100px]">Price</TableHead>
-                    <TableHead className="text-right w-[100px]">Total</TableHead>
-                    <TableHead className="w-[40px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cartItems.map((item) => (
-                    <TableRow key={item.variant.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{item.variant.product.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {item.variant.product.brand.name} • {item.variant.specification.label}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.variant.id, -1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center font-medium">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.variant.id, 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
+              <div className="space-y-2">
+                {cartItems.map((item) => (
+                  <div
+                    key={item.variant.id}
+                    className="p-2 border rounded-lg space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {item.variant.product.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.variant.specification.label}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => removeItem(item.variant.id)}
+                      >
+                        <X className="h-3 w-3 text-red-500" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => updateQuantity(item.variant.id, -1)}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-8 text-center font-medium text-sm">
+                          {item.quantity}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => updateQuantity(item.variant.id, 1)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="text-right">
                         <Input
                           type="number"
                           step="0.01"
@@ -471,39 +542,49 @@ export function POSClient({
                           onChange={(e) =>
                             updatePrice(item.variant.id, parseFloat(e.target.value) || 0)
                           }
-                          className="w-20 h-8 text-sm"
+                          className="w-20 h-7 text-xs text-right"
                         />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatUsd(item.unitPrice * item.quantity)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => removeItem(item.variant.id)}
-                        >
-                          <X className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        <p className="text-xs font-medium mt-1">
+                          {formatUsd(item.unitPrice * item.quantity)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Right: Summary and Actions */}
-      <div className="flex flex-col gap-4">
-        {/* Customer Selection */}
+      {/* Right: Summary */}
+      <div className="lg:col-span-3 flex flex-col gap-4">
+        {/* Location */}
+        {locations.length > 0 && (
+          <Card>
+            <CardContent className="pt-4">
+              <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Customer */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <User className="h-4 w-4" />
-              Customer (Optional)
+              Customer
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -512,14 +593,13 @@ export function POSClient({
               onValueChange={(v) => setSelectedCustomerId(v === "walk-in" ? "" : v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Walk-in Customer" />
+                <SelectValue placeholder="Walk-in" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="walk-in">Walk-in Customer</SelectItem>
                 {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     {customer.name}
-                    {customer.companyName && ` (${customer.companyName})`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -530,7 +610,7 @@ export function POSClient({
         {/* Order Summary */}
         <Card className="flex-1">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Order Summary</CardTitle>
+            <CardTitle className="text-lg">Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex justify-between text-sm">
@@ -546,9 +626,9 @@ export function POSClient({
                 max="100"
                 value={discountPercent}
                 onChange={(e) => setDiscountPercent(Math.min(100, parseFloat(e.target.value) || 0))}
-                className="w-16 h-8 text-sm text-center"
+                className="w-14 h-7 text-xs text-center"
               />
-              <span className="text-sm text-muted-foreground">%</span>
+              <span className="text-xs">%</span>
               <span className="ml-auto text-sm text-red-600">
                 -{formatUsd(discountAmount)}
               </span>
@@ -556,53 +636,38 @@ export function POSClient({
 
             <Separator />
 
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-semibold">Total</span>
-              <div className="text-right">
-                <p className="text-2xl font-bold">{formatUsd(total)}</p>
-                <p className="text-sm text-muted-foreground">
-                  SRD {totalSrd.toFixed(2)}
-                </p>
-              </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold">{formatUsd(total)}</p>
+              <p className="text-sm text-muted-foreground">
+                SRD {totalSrd.toFixed(2)}
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Checkout Button */}
+        {/* Quick Discounts */}
+        <div className="grid grid-cols-3 gap-1">
+          <Button variant="outline" size="sm" onClick={() => setDiscountPercent(5)}>
+            5%
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setDiscountPercent(10)}>
+            10%
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setDiscountPercent(15)}>
+            15%
+          </Button>
+        </div>
+
+        {/* Checkout */}
         <Button
           onClick={handleCheckout}
           disabled={cartItems.length === 0}
-          className="h-16 text-xl"
+          className="h-14 text-lg"
           size="lg"
         >
-          <CreditCard className="h-6 w-6 mr-2" />
+          <CreditCard className="h-5 w-5 mr-2" />
           Checkout
         </Button>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setDiscountPercent(5)}
-            className="text-xs"
-          >
-            5% Off
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setDiscountPercent(10)}
-            className="text-xs"
-          >
-            10% Off
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setDiscountPercent(15)}
-            className="text-xs"
-          >
-            15% Off
-          </Button>
-        </div>
       </div>
     </div>
   );

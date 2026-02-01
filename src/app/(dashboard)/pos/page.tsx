@@ -25,11 +25,31 @@ async function getCustomers() {
   });
 }
 
+async function getProducts() {
+  return prisma.productVariant.findMany({
+    where: { stockQuantity: { gt: 0 } },
+    orderBy: [
+      { product: { brand: { name: "asc" } } },
+      { product: { name: "asc" } },
+      { specification: { sortOrder: "asc" } },
+    ],
+    include: {
+      product: {
+        include: {
+          brand: true,
+        },
+      },
+      specification: true,
+    },
+  });
+}
+
 export default async function POSPage() {
-  const [exchangeRate, locations, customers] = await Promise.all([
+  const [exchangeRate, locations, customers, products] = await Promise.all([
     getExchangeRate(),
     getLocations(),
     getCustomers(),
+    getProducts(),
   ]);
 
   return (
@@ -38,6 +58,7 @@ export default async function POSPage() {
         exchangeRate={exchangeRate}
         locations={locations}
         customers={customers}
+        products={products}
       />
     </div>
   );
