@@ -227,7 +227,7 @@ export default async function InvoiceDetailPage({
               {company.bankAccUsd && <p>USD: {company.bankAccUsd}</p>}
               {company.bankAccSrd && <p>SRD: {company.bankAccSrd}</p>}
               {company.bankAccEur && <p>EUR: {company.bankAccEur}</p>}
-              {company.finnNumber && <p className="mt-2">Finn #: {company.finnNumber}</p>}
+              {company.finnNumber && <p className="mt-2">Fin #: {company.finnNumber}</p>}
             </div>
           </div>
 
