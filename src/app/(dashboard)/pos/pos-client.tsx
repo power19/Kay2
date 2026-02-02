@@ -110,6 +110,10 @@ export function POSClient({
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [amountReceived, setAmountReceived] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({ name: "", email: "", phone: "", companyName: "" });
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [customerList, setCustomerList] = useState(customers);
 
   // Filter products based on search
   const filteredProducts = useMemo(() => {
@@ -302,8 +306,95 @@ export function POSClient({
 
   const change = parseFloat(amountReceived) - total;
 
+  const createNewCustomer = async () => {
+    if (!newCustomerData.name.trim()) {
+      toast.error("Customer name is required");
+      return;
+    }
+
+    setIsCreatingCustomer(true);
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCustomerData),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create customer");
+      }
+
+      const customer = await res.json();
+      setCustomerList((prev) => [...prev, customer].sort((a, b) => a.name.localeCompare(b.name)));
+      setSelectedCustomerId(customer.id);
+      setShowNewCustomerDialog(false);
+      setNewCustomerData({ name: "", email: "", phone: "", companyName: "" });
+      toast.success(`Customer "${customer.name}" created`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create customer");
+    } finally {
+      setIsCreatingCustomer(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
+      {/* New Customer Dialog */}
+      <Dialog open={showNewCustomerDialog} onOpenChange={setShowNewCustomerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Customer</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="customerName">Name *</Label>
+              <Input
+                id="customerName"
+                value={newCustomerData.name}
+                onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
+                placeholder="Customer name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customerCompany">Company</Label>
+              <Input
+                id="customerCompany"
+                value={newCustomerData.companyName}
+                onChange={(e) => setNewCustomerData({ ...newCustomerData, companyName: e.target.value })}
+                placeholder="Company name (optional)"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customerPhone">Phone</Label>
+              <Input
+                id="customerPhone"
+                value={newCustomerData.phone}
+                onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
+                placeholder="Phone number (optional)"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customerEmail">Email</Label>
+              <Input
+                id="customerEmail"
+                type="email"
+                value={newCustomerData.email}
+                onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
+                placeholder="Email (optional)"
+              />
+            </div>
+            <Button
+              onClick={createNewCustomer}
+              disabled={isCreatingCustomer || !newCustomerData.name.trim()}
+              className="w-full"
+            >
+              {isCreatingCustomer ? "Creating..." : "Create Customer"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
@@ -587,7 +678,7 @@ export function POSClient({
               Customer
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-2">
             <Select
               value={selectedCustomerId || "walk-in"}
               onValueChange={(v) => setSelectedCustomerId(v === "walk-in" ? "" : v)}
@@ -597,13 +688,25 @@ export function POSClient({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="walk-in">Walk-in Customer</SelectItem>
-                {customers.map((customer) => (
+                {customerList.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     {customer.name}
+                    {customer.companyName && (
+                      <span className="text-muted-foreground ml-1">({customer.companyName})</span>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setShowNewCustomerDialog(true)}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              New Customer
+            </Button>
           </CardContent>
         </Card>
 
