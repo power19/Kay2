@@ -264,7 +264,7 @@ export function CompanyForm({ company }: { company: CompanyInfo }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="finnNumber">Finn Number (Fiscal ID)</Label>
+              <Label htmlFor="finnNumber">Fin Number (Fiscal ID)</Label>
               <Input
                 id="finnNumber"
                 value={formData.finnNumber}
