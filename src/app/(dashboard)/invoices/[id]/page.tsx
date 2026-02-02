@@ -73,6 +73,8 @@ export default async function InvoiceDetailPage({
   const invoiceNumber = invoice.invoiceNumber.replace(/[^0-9]/g, '') || invoice.invoiceNumber;
   const currency = invoice.displayCurrency || "SRD";
   const isUsd = currency === "USD";
+  const invoiceDate = new Date(invoice.invoiceDate).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+  const pdfTitle = `Invoice-${invoice.invoiceNumber}-${invoiceDate}`;
 
   // Format helpers based on display currency
   const formatPrice = (usdAmount: number) => {
@@ -102,7 +104,7 @@ export default async function InvoiceDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <PrintButton />
+          <PrintButton documentTitle={pdfTitle} />
           <InvoiceActions invoice={invoice} />
         </div>
       </div>

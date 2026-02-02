@@ -71,6 +71,8 @@ export default async function QuoteDetailPage({
   const quoteNumber = quote.quoteNumber.replace(/[^0-9]/g, '') || quote.quoteNumber;
   const currency = quote.displayCurrency || "SRD";
   const isUsd = currency === "USD";
+  const quoteDate = new Date(quote.quoteDate).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+  const pdfTitle = `Quote-${quote.quoteNumber}-${quoteDate}`;
 
   // Format helpers based on display currency
   const formatPrice = (usdAmount: number) => {
@@ -100,7 +102,7 @@ export default async function QuoteDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <PrintButton />
+          <PrintButton documentTitle={pdfTitle} />
           <QuoteActions quote={quote} />
         </div>
       </div>
