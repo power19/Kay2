@@ -20,7 +20,7 @@ COPY . .
 RUN npx prisma generate
 RUN mkdir -p /app/data
 ENV DATABASE_URL="file:/app/data/build.db"
-RUN npx prisma migrate deploy
+RUN npx prisma db push --accept-data-loss
 
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -57,4 +57,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV HOME=/app
 
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --accept-data-loss && node server.js"]
