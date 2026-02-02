@@ -29,18 +29,18 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { name, address, phone, email, website, bankName, bankAccUsd, bankAccSrd, bankAccEur } = body;
+    const { name, address, phone, email, website, finnNumber, bankName, bankAccUsd, bankAccSrd, bankAccEur } = body;
 
     let company = await prisma.companyInfo.findFirst();
 
     if (company) {
       company = await prisma.companyInfo.update({
         where: { id: company.id },
-        data: { name, address, phone, email, website, bankName, bankAccUsd, bankAccSrd, bankAccEur },
+        data: { name, address, phone, email, website, finnNumber, bankName, bankAccUsd, bankAccSrd, bankAccEur },
       });
     } else {
       company = await prisma.companyInfo.create({
-        data: { name, address, phone, email, website, bankName, bankAccUsd, bankAccSrd, bankAccEur },
+        data: { name, address, phone, email, website, finnNumber, bankName, bankAccUsd, bankAccSrd, bankAccEur },
       });
     }
 

@@ -123,6 +123,7 @@ model CompanyInfo {
   phone       String?
   email       String?
   website     String?
+  finnNumber  String? // Fiscal/Tax identification number
   bankName    String?
   bankAccUsd  String?
   bankAccSrd  String?

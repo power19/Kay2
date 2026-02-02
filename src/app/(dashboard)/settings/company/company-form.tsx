@@ -18,6 +18,7 @@ interface CompanyInfo {
   phone: string | null;
   email: string | null;
   website: string | null;
+  finnNumber: string | null;
   bankName: string | null;
   bankAccUsd: string | null;
   bankAccSrd: string | null;
@@ -35,6 +36,7 @@ export function CompanyForm({ company }: { company: CompanyInfo }) {
     phone: company.phone || "",
     email: company.email || "",
     website: company.website || "",
+    finnNumber: company.finnNumber || "",
     bankName: company.bankName || "",
     bankAccUsd: company.bankAccUsd || "",
     bankAccSrd: company.bankAccSrd || "",
@@ -251,14 +253,25 @@ export function CompanyForm({ company }: { company: CompanyInfo }) {
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="website">Website</Label>
-            <Input
-              id="website"
-              value={formData.website}
-              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-              placeholder="https://www.example.com"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="website">Website</Label>
+              <Input
+                id="website"
+                value={formData.website}
+                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                placeholder="https://www.example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="finnNumber">Finn Number (Fiscal ID)</Label>
+              <Input
+                id="finnNumber"
+                value={formData.finnNumber}
+                onChange={(e) => setFormData({ ...formData, finnNumber: e.target.value })}
+                placeholder="Tax identification number"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

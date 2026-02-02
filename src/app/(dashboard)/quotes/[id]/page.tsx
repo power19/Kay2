@@ -119,6 +119,9 @@ export default async function QuoteDetailPage({
             {company.phone && (
               <p className="text-sm text-gray-600">Phone: {company.phone}</p>
             )}
+            {company.finnNumber && (
+              <p className="text-sm text-gray-600">Finn #: {company.finnNumber}</p>
+            )}
           </div>
           <h2 className="text-4xl font-bold text-[#1e3a5f]">QUOTE</h2>
         </div>
