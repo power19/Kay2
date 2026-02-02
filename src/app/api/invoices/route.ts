@@ -50,10 +50,12 @@ export async function POST(request: NextRequest) {
       customerId,
       items,
       notes,
+      invoiceDate,
       dueDate,
       discountPercent = 0,
       taxRate = 0,
-      paymentTerms = "CASH/BANK"
+      paymentTerms = "CASH/BANK",
+      displayCurrency = "SRD"
     } = body;
 
     if (!customerId) {
@@ -111,7 +113,9 @@ export async function POST(request: NextRequest) {
         taxAmountUsd,
         totalUsd,
         paymentTerms,
+        displayCurrency,
         notes: notes || null,
+        invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : null,
         items: {
           create: items.map(

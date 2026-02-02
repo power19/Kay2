@@ -182,8 +182,10 @@ model Invoice {
   totalUsd        Float
   status          String        @default("draft")
   paymentTerms    String        @default("CASH/BANK")
+  invoiceDate     DateTime      @default(now())
   dueDate         DateTime?
   paidDate        DateTime?
+  displayCurrency String        @default("SRD")
   notes           String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

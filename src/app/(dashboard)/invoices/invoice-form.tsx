@@ -67,8 +67,10 @@ export function InvoiceForm({
   const [isLoading, setIsLoading] = useState(false);
   const [customerId, setCustomerId] = useState("");
   const [notes, setNotes] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [dueDate, setDueDate] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("CASH/BANK");
+  const [displayCurrency, setDisplayCurrency] = useState<"USD" | "SRD">("SRD");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
   const [items, setItems] = useState<LineItem[]>([]);
@@ -198,8 +200,10 @@ export function InvoiceForm({
         body: JSON.stringify({
           customerId,
           notes,
+          invoiceDate: invoiceDate || null,
           dueDate: dueDate || null,
           paymentTerms,
+          displayCurrency,
           discountPercent,
           taxRate,
           items: items.map((item) => ({
@@ -271,12 +275,34 @@ export function InvoiceForm({
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
+                <Label>Invoice Date *</Label>
+                <Input
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Due Date</Label>
                 <Input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
                 />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Display Currency</Label>
+                <Select value={displayCurrency} onValueChange={(v) => setDisplayCurrency(v as "USD" | "SRD")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4}>
+                    <SelectItem value="SRD">SRD (Surinamese Dollar)</SelectItem>
+                    <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Notes (appears on invoice)</Label>

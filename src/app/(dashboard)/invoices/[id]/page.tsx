@@ -71,6 +71,16 @@ export default async function InvoiceDetailPage({
 
   const totalSrd = invoice.totalUsd * invoice.exchangeRate;
   const invoiceNumber = invoice.invoiceNumber.replace(/[^0-9]/g, '') || invoice.invoiceNumber;
+  const currency = invoice.displayCurrency || "SRD";
+  const isUsd = currency === "USD";
+
+  // Format helpers based on display currency
+  const formatPrice = (usdAmount: number) => {
+    if (isUsd) {
+      return `USD ${usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `SRD ${(usdAmount * invoice.exchangeRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -141,7 +151,7 @@ export default async function InvoiceDetailPage({
                 {invoiceNumber}
               </div>
               <div className="px-3 py-1 text-sm border-t border-l border-gray-300">
-                {new Date(invoice.createdAt).toLocaleDateString()}
+                {new Date(invoice.invoiceDate).toLocaleDateString()}
               </div>
             </div>
             <div className="grid grid-cols-2 border border-t-0 border-gray-300 mt-2">
@@ -173,8 +183,7 @@ export default async function InvoiceDetailPage({
           </thead>
           <tbody>
             {invoice.items.map((item, index) => {
-              const amountSrd = item.quantity * item.unitPriceUsd * invoice.exchangeRate;
-              const unitPriceSrd = item.unitPriceUsd * invoice.exchangeRate;
+              const lineTotal = item.quantity * item.unitPriceUsd;
               return (
                 <tr key={item.id} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                   <td className="px-3 py-2 border-b border-gray-200">
@@ -184,10 +193,10 @@ export default async function InvoiceDetailPage({
                     {item.quantity}
                   </td>
                   <td className="px-3 py-2 text-right border-b border-gray-200">
-                    SRD {unitPriceSrd.toFixed(2)}
+                    {formatPrice(item.unitPriceUsd)}
                   </td>
                   <td className="px-3 py-2 text-right border-b border-gray-200">
-                    SRD {amountSrd.toFixed(2)}
+                    {formatPrice(lineTotal)}
                   </td>
                 </tr>
               );
@@ -223,29 +232,32 @@ export default async function InvoiceDetailPage({
           <div className="space-y-2">
             <div className="flex justify-between text-sm border-b pb-2">
               <span>SUBTOTAL</span>
-              <span>{(invoice.subtotalUsd * invoice.exchangeRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span>{formatPrice(invoice.subtotalUsd)}</span>
             </div>
 
             {invoice.discountUsd > 0 && (
               <div className="flex justify-between text-sm border-b pb-2">
                 <span>DISCOUNT {invoice.discountPercent > 0 ? `(${invoice.discountPercent}%)` : ''}</span>
-                <span>-{(invoice.discountUsd * invoice.exchangeRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span>-{formatPrice(invoice.discountUsd)}</span>
               </div>
             )}
 
             {invoice.taxRate > 0 && (
               <div className="flex justify-between text-sm border-b pb-2">
                 <span>BTW ({invoice.taxRate}%)</span>
-                <span>{(invoice.taxAmountUsd * invoice.exchangeRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span>{formatPrice(invoice.taxAmountUsd)}</span>
               </div>
             )}
 
             {/* Total Box */}
             <div className="bg-[#1e3a5f] text-white flex items-center mt-4">
               <div className="px-4 py-3 font-bold text-lg">TOTAL</div>
-              <div className="px-4 py-3 font-bold text-lg">SRD</div>
+              <div className="px-4 py-3 font-bold text-lg">{currency}</div>
               <div className="px-4 py-3 font-bold text-lg flex-1 text-right">
-                {totalSrd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {isUsd
+                  ? invoice.totalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : totalSrd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                }
               </div>
             </div>
 
