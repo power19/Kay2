@@ -18,6 +18,7 @@ import {
   Warehouse,
   Settings2,
   ShoppingCart,
+  Ship,
 } from "lucide-react";
 import { SidebarLogo } from "./sidebar-logo";
 
@@ -29,6 +30,7 @@ const navigation = [
   { name: "Inventory", href: "/inventory", icon: Boxes },
   { name: "Products", href: "/products", icon: Package },
   { name: "Brands", href: "/brands", icon: Tags },
+  { name: "Shipments", href: "/shipments", icon: Ship },
   { name: "Quotes", href: "/quotes", icon: FileText },
   { name: "Invoices", href: "/invoices", icon: Receipt },
   { name: "Customers", href: "/customers", icon: Users },

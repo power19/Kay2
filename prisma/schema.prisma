@@ -210,3 +210,19 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+model Shipment {
+  id                 String   @id @default(cuid())
+  shipmentNumber     String   @unique
+  description        String?
+  supplier           String?
+  arrivalDate        DateTime
+  inklaarKosten      Float    @default(0) // Customs/clearance costs
+  shippingKosten     Float    @default(0) // Shipping costs
+  overmakingsKosten  Float    @default(0) // Transfer costs
+  overigeKosten      Float    @default(0) // Other costs
+  notes              String?
+  status             String   @default("pending") // pending, received, completed
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
