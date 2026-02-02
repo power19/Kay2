@@ -475,16 +475,16 @@ export function InventoryClient({
                     <div className="space-y-2">
                       <Label>Location (Optional)</Label>
                       <Select
-                        value={formData.locationId}
+                        value={formData.locationId || "none"}
                         onValueChange={(value) =>
-                          setFormData({ ...formData, locationId: value })
+                          setFormData({ ...formData, locationId: value === "none" ? "" : value })
                         }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select location" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No specific location</SelectItem>
+                          <SelectItem value="none">No specific location</SelectItem>
                           {adjustmentType === "remove" ? (
                             // For removal, only show locations with stock
                             adjustingVariant.locationStock
