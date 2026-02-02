@@ -69,6 +69,16 @@ export default async function QuoteDetailPage({
 
   const totalSrd = quote.totalUsd * quote.exchangeRate;
   const quoteNumber = quote.quoteNumber.replace(/[^0-9]/g, '') || quote.quoteNumber;
+  const currency = quote.displayCurrency || "SRD";
+  const isUsd = currency === "USD";
+
+  // Format helpers based on display currency
+  const formatPrice = (usdAmount: number) => {
+    if (isUsd) {
+      return `USD ${usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `SRD ${(usdAmount * quote.exchangeRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -139,7 +149,7 @@ export default async function QuoteDetailPage({
                 {quoteNumber}
               </div>
               <div className="px-3 py-1 text-sm border-t border-l border-gray-300">
-                {new Date(quote.createdAt).toLocaleDateString()}
+                {new Date(quote.quoteDate).toLocaleDateString()}
               </div>
             </div>
             {quote.validUntil && (
@@ -173,8 +183,7 @@ export default async function QuoteDetailPage({
           </thead>
           <tbody>
             {quote.items.map((item, index) => {
-              const amountSrd = item.quantity * item.unitPriceUsd * quote.exchangeRate;
-              const unitPriceSrd = item.unitPriceUsd * quote.exchangeRate;
+              const lineTotal = item.quantity * item.unitPriceUsd;
               return (
                 <tr key={item.id} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                   <td className="px-3 py-2 border-b border-gray-200">
@@ -184,10 +193,10 @@ export default async function QuoteDetailPage({
                     {item.quantity}
                   </td>
                   <td className="px-3 py-2 text-right border-b border-gray-200">
-                    SRD {unitPriceSrd.toFixed(2)}
+                    {formatPrice(item.unitPriceUsd)}
                   </td>
                   <td className="px-3 py-2 text-right border-b border-gray-200">
-                    SRD {amountSrd.toFixed(2)}
+                    {formatPrice(lineTotal)}
                   </td>
                 </tr>
               );
@@ -223,15 +232,18 @@ export default async function QuoteDetailPage({
           <div className="space-y-2">
             <div className="flex justify-between text-sm border-b pb-2">
               <span>SUBTOTAL</span>
-              <span>{totalSrd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span>{formatPrice(quote.subtotalUsd)}</span>
             </div>
 
             {/* Total Box */}
             <div className="bg-[#1e3a5f] text-white flex items-center mt-4">
               <div className="px-4 py-3 font-bold text-lg">TOTAL</div>
-              <div className="px-4 py-3 font-bold text-lg">SRD</div>
+              <div className="px-4 py-3 font-bold text-lg">{currency}</div>
               <div className="px-4 py-3 font-bold text-lg flex-1 text-right">
-                {totalSrd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {isUsd
+                  ? quote.totalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : totalSrd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                }
               </div>
             </div>
 

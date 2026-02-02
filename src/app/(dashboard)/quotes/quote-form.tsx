@@ -80,11 +80,13 @@ export function QuoteForm({
   const [isLoading, setIsLoading] = useState(false);
   const [customerId, setCustomerId] = useState(existingQuote?.customerId || "");
   const [notes, setNotes] = useState(existingQuote?.notes || "");
+  const [quoteDate, setQuoteDate] = useState(new Date().toISOString().split("T")[0]);
   const [validUntil, setValidUntil] = useState(
     existingQuote?.validUntil
       ? new Date(existingQuote.validUntil).toISOString().split("T")[0]
       : ""
   );
+  const [displayCurrency, setDisplayCurrency] = useState<"USD" | "SRD">("SRD");
   const [items, setItems] = useState<LineItem[]>(
     existingQuote?.items.map((item) => ({
       variantId: item.variantId,
@@ -208,7 +210,9 @@ export function QuoteForm({
         body: JSON.stringify({
           customerId,
           notes,
+          quoteDate: quoteDate || null,
           validUntil: validUntil || null,
+          displayCurrency,
           items: items.map((item) => ({
             variantId: item.variantId,
             quantity: item.quantity,
@@ -260,12 +264,34 @@ export function QuoteForm({
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>Quote Date *</Label>
+                <Input
+                  type="date"
+                  value={quoteDate}
+                  onChange={(e) => setQuoteDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
                 <Label>Valid Until</Label>
                 <Input
                   type="date"
                   value={validUntil}
                   onChange={(e) => setValidUntil(e.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Display Currency</Label>
+                <Select value={displayCurrency} onValueChange={(v) => setDisplayCurrency(v as "USD" | "SRD")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4}>
+                    <SelectItem value="SRD">SRD (Surinamese Dollar)</SelectItem>
+                    <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">

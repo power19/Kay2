@@ -46,7 +46,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { customerId, items, notes, validUntil } = body;
+    const { customerId, items, notes, quoteDate, validUntil, displayCurrency = "SRD" } = body;
 
     if (!customerId) {
       return NextResponse.json(
@@ -91,7 +91,9 @@ export async function POST(request: NextRequest) {
         subtotalUsd,
         totalUsd: subtotalUsd,
         notes: notes || null,
+        quoteDate: quoteDate ? new Date(quoteDate) : new Date(),
         validUntil: validUntil ? new Date(validUntil) : null,
+        displayCurrency,
         items: {
           create: items.map(
             (item: { variantId: string; quantity: number; unitPriceUsd: number }) => ({
