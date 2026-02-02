@@ -121,9 +121,6 @@ export default async function InvoiceDetailPage({
             {company.phone && (
               <p className="text-sm text-gray-600">Phone: {company.phone}</p>
             )}
-            {company.finnNumber && (
-              <p className="text-sm text-gray-600">Finn #: {company.finnNumber}</p>
-            )}
           </div>
           <h2 className="text-4xl font-bold text-[#1e3a5f]">INVOICE</h2>
         </div>
@@ -230,6 +227,7 @@ export default async function InvoiceDetailPage({
               {company.bankAccUsd && <p>USD: {company.bankAccUsd}</p>}
               {company.bankAccSrd && <p>SRD: {company.bankAccSrd}</p>}
               {company.bankAccEur && <p>EUR: {company.bankAccEur}</p>}
+              {company.finnNumber && <p className="mt-2">Finn #: {company.finnNumber}</p>}
             </div>
           </div>
 
