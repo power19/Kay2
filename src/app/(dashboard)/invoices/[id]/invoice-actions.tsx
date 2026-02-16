@@ -30,6 +30,10 @@ export function InvoiceActions({ invoice }: { invoice: Invoice }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const updateStatus = async (status: string) => {
+    if (status === "paid") {
+      if (!confirm("Mark this invoice as paid? Stock will be deducted from inventory.")) return;
+    }
+
     setIsLoading(true);
     try {
       const res = await fetch(`/api/invoices/${invoice.id}`, {
@@ -39,13 +43,16 @@ export function InvoiceActions({ invoice }: { invoice: Invoice }) {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to update status");
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update status");
       }
 
       toast.success(`Invoice marked as ${status}`);
       router.refresh();
     } catch (error) {
-      toast.error("Failed to update status");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update status"
+      );
     } finally {
       setIsLoading(false);
     }

@@ -51,10 +51,12 @@ export async function POST(request: NextRequest) {
         variants: variants?.length
           ? {
               create: variants.map(
-                (v: { specificationId: string; priceUsd: number; sku?: string }) => ({
+                (v: { specificationId: string; priceUsd: number; costPriceUsd?: number; sku?: string; barcode?: string }) => ({
                   specificationId: v.specificationId,
                   priceUsd: v.priceUsd,
+                  costPriceUsd: v.costPriceUsd || 0,
                   sku: v.sku || null,
+                  barcode: v.barcode || null,
                   stockQuantity: 0,
                 })
               ),

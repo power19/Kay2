@@ -48,6 +48,93 @@ export async function PUT(
     const body = await request.json();
     const { status, notes, dueDate, paidDate } = body;
 
+    // If marking as paid, do everything in one transaction
+    if (status === "paid") {
+      // First check current status to prevent double-pay
+      const existing = await prisma.invoice.findUnique({
+        where: { id },
+        select: { status: true },
+      });
+
+      if (!existing) {
+        return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+      }
+
+      if (existing.status === "paid") {
+        return NextResponse.json(
+          { error: "Invoice is already paid" },
+          { status: 400 }
+        );
+      }
+
+      // Get the invoice items first
+      const invoiceWithItems = await prisma.invoice.findUnique({
+        where: { id },
+        include: {
+          items: true,
+        },
+      });
+
+      if (!invoiceWithItems) {
+        return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+      }
+
+      // Build all operations for a single transaction
+      const operations = [
+        prisma.invoice.update({
+          where: { id },
+          data: {
+            status: "paid",
+            paidDate: paidDate ? new Date(paidDate) : new Date(),
+            ...(notes !== undefined ? { notes: notes || null } : {}),
+          },
+        }),
+        // Deduct inventory and create stock movements for each item
+        ...invoiceWithItems.items.flatMap((item) => [
+          prisma.productVariant.update({
+            where: { id: item.variantId },
+            data: {
+              stockQuantity: {
+                decrement: item.quantity,
+              },
+            },
+          }),
+          prisma.stockMovement.create({
+            data: {
+              variantId: item.variantId,
+              quantityChange: -item.quantity,
+              type: "sale",
+              reference: invoiceWithItems.invoiceNumber,
+              notes: `Sold via invoice ${invoiceWithItems.invoiceNumber}`,
+            },
+          }),
+        ]),
+      ];
+
+      await prisma.$transaction(operations);
+
+      // Fetch the updated invoice with full relations for the response
+      const updatedInvoice = await prisma.invoice.findUnique({
+        where: { id },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: { include: { brand: true } },
+                  specification: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return NextResponse.json(updatedInvoice);
+    }
+
+    // For non-paid status updates
     const updateData: {
       status?: string;
       notes?: string | null;
@@ -61,11 +148,6 @@ export async function PUT(
       updateData.dueDate = dueDate ? new Date(dueDate) : null;
     if (paidDate !== undefined)
       updateData.paidDate = paidDate ? new Date(paidDate) : null;
-
-    // If marking as paid, set paidDate if not provided
-    if (status === "paid" && !paidDate) {
-      updateData.paidDate = new Date();
-    }
 
     const invoice = await prisma.invoice.update({
       where: { id },
@@ -84,31 +166,6 @@ export async function PUT(
         },
       },
     });
-
-    // If marked as paid, deduct from inventory
-    if (status === "paid") {
-      for (const item of invoice.items) {
-        await prisma.$transaction([
-          prisma.productVariant.update({
-            where: { id: item.variantId },
-            data: {
-              stockQuantity: {
-                decrement: item.quantity,
-              },
-            },
-          }),
-          prisma.stockMovement.create({
-            data: {
-              variantId: item.variantId,
-              quantityChange: -item.quantity,
-              type: "sale",
-              reference: invoice.invoiceNumber,
-              notes: `Sold via invoice ${invoice.invoiceNumber}`,
-            },
-          }),
-        ]);
-      }
-    }
 
     return NextResponse.json(invoice);
   } catch (error: unknown) {

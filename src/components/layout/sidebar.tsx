@@ -19,6 +19,7 @@ import {
   Settings2,
   ShoppingCart,
   Ship,
+  BarChart3,
 } from "lucide-react";
 import { SidebarLogo } from "./sidebar-logo";
 
@@ -34,6 +35,7 @@ const navigation = [
   { name: "Quotes", href: "/quotes", icon: FileText },
   { name: "Invoices", href: "/invoices", icon: Receipt },
   { name: "Customers", href: "/customers", icon: Users },
+  { name: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
 const settingsNavigation = [

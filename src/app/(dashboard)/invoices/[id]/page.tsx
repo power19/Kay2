@@ -8,6 +8,8 @@ import { formatSrd } from "@/lib/currency";
 import { InvoiceActions } from "./invoice-actions";
 import { PrintButton } from "@/components/shared/print-button";
 
+export const dynamic = "force-dynamic";
+
 async function getInvoice(id: string) {
   return prisma.invoice.findUnique({
     where: { id },

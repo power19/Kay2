@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, Zap } from "lucide-react";
 import { formatUsd } from "@/lib/currency";
 
 type Brand = {
@@ -67,19 +68,98 @@ export function ProductsClient({
   brands: Brand[];
   specifications: Specification[];
 }) {
+  const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     brandId: "",
   });
+  const [quickAddData, setQuickAddData] = useState({
+    brandId: "",
+    name: "",
+    specificationId: "",
+    costPriceUsd: "",
+    priceUsd: "",
+    barcode: "",
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const resetForm = () => {
     setFormData({ name: "", description: "", brandId: "" });
     setEditingProduct(null);
+  };
+
+  const resetQuickAdd = () => {
+    setQuickAddData({
+      brandId: "",
+      name: "",
+      specificationId: "",
+      costPriceUsd: "",
+      priceUsd: "",
+      barcode: "",
+    });
+  };
+
+  const handleQuickAdd = async () => {
+    if (!quickAddData.brandId) {
+      toast.error("Brand is required");
+      return;
+    }
+    if (!quickAddData.name.trim()) {
+      toast.error("Product name is required");
+      return;
+    }
+    if (!quickAddData.specificationId) {
+      toast.error("Specification is required");
+      return;
+    }
+    const price = parseFloat(quickAddData.priceUsd);
+    if (isNaN(price) || price < 0) {
+      toast.error("Sell price is required");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const costPrice = parseFloat(quickAddData.costPriceUsd) || 0;
+
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: quickAddData.name.trim(),
+          brandId: quickAddData.brandId,
+          variants: [
+            {
+              specificationId: quickAddData.specificationId,
+              costPriceUsd: costPrice,
+              priceUsd: price,
+              barcode: quickAddData.barcode || undefined,
+            },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create product");
+      }
+
+      toast.success("Product created with variant");
+      setIsQuickAddOpen(false);
+      resetQuickAdd();
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create product"
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAdd = async () => {
@@ -239,13 +319,122 @@ export function ProductsClient({
 
   return (
     <div className="space-y-4">
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogTrigger asChild>
-          <Button onClick={() => resetForm()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Product
-          </Button>
-        </DialogTrigger>
+      <div className="flex items-center gap-2">
+        <Dialog open={isQuickAddOpen} onOpenChange={setIsQuickAddOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => resetQuickAdd()}>
+              <Zap className="mr-2 h-4 w-4" />
+              Quick Add
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Quick Add Product</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Brand *</Label>
+                <Select
+                  value={quickAddData.brandId}
+                  onValueChange={(value) =>
+                    setQuickAddData({ ...quickAddData, brandId: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.id} value={brand.id}>
+                        {brand.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Product Name *</Label>
+                <Input
+                  value={quickAddData.name}
+                  onChange={(e) =>
+                    setQuickAddData({ ...quickAddData, name: e.target.value })
+                  }
+                  placeholder="e.g., Motor Oil 5W-30"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Specification *</Label>
+                <Select
+                  value={quickAddData.specificationId}
+                  onValueChange={(value) =>
+                    setQuickAddData({ ...quickAddData, specificationId: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select specification" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {specifications.map((spec) => (
+                      <SelectItem key={spec.id} value={spec.id}>
+                        {spec.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Cost Price (USD)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quickAddData.costPriceUsd}
+                    onChange={(e) =>
+                      setQuickAddData({ ...quickAddData, costPriceUsd: e.target.value })
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sell Price (USD) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quickAddData.priceUsd}
+                    onChange={(e) =>
+                      setQuickAddData({ ...quickAddData, priceUsd: e.target.value })
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Barcode (Optional)</Label>
+                <Input
+                  value={quickAddData.barcode}
+                  onChange={(e) =>
+                    setQuickAddData({ ...quickAddData, barcode: e.target.value })
+                  }
+                  placeholder="Scan or enter barcode"
+                  className="font-mono"
+                />
+              </div>
+              <Button onClick={handleQuickAdd} disabled={isLoading} className="w-full">
+                {isLoading ? "Creating..." : "Create Product"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" onClick={() => resetForm()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Product</DialogTitle>
@@ -299,6 +488,7 @@ export function ProductsClient({
           </div>
         </DialogContent>
       </Dialog>
+      </div>
 
       <Dialog
         open={!!editingProduct}
