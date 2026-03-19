@@ -48,7 +48,7 @@ export function generateTOTPSecret(): string {
 }
 
 export function getTOTPUri(secret: string, email: string): string {
-  return generateURI({ label: email, issuer: "Invman", secret, type: "totp" });
+  return generateURI({ label: email, issuer: "Invman", secret });
 }
 
 export function verifyTOTPCode(secret: string, code: string): boolean {
