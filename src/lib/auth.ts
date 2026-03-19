@@ -53,7 +53,7 @@ export function getTOTPUri(secret: string, email: string): string {
 
 export function verifyTOTPCode(secret: string, code: string): boolean {
   const result = verifySync({ token: code, secret });
-  return result !== false && result.valid === true;
+  return result.valid === true;
 }
 
 // ── Backup Codes ─────────────────────────────────────────────────────────────
