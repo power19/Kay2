@@ -18,6 +18,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { BrandsExcelButton } from "./brands-excel-button";
+import { MonthlyTaxCard } from "./monthly-tax-card";
 
 export const dynamic = "force-dynamic";
 
@@ -322,6 +323,9 @@ export default async function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Monthly Sales & BTW Summary */}
+      <MonthlyTaxCard />
 
       {/* Monthly Revenue Bar Chart */}
       <Card>
