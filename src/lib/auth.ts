@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
-import { authenticator } from "otplib";
+import { generateSecret, generateSync, verifySync, generateURI } from "otplib";
 
 // ── Passwords ────────────────────────────────────────────────────────────────
 
@@ -44,15 +44,16 @@ export async function deleteSession(token: string) {
 // ── TOTP 2FA ─────────────────────────────────────────────────────────────────
 
 export function generateTOTPSecret(): string {
-  return authenticator.generateSecret();
+  return generateSecret();
 }
 
 export function getTOTPUri(secret: string, email: string): string {
-  return authenticator.keyuri(email, "Invman", secret);
+  return generateURI({ label: email, issuer: "Invman", secret, type: "totp" });
 }
 
 export function verifyTOTPCode(secret: string, code: string): boolean {
-  return authenticator.verify({ token: code, secret });
+  const result = verifySync({ token: code, secret });
+  return result !== false && result.valid === true;
 }
 
 // ── Backup Codes ─────────────────────────────────────────────────────────────
@@ -76,18 +77,4 @@ export async function verifyBackupCode(code: string, hashedCodes: string[]): Pro
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────
 
-export const SESSION_COOKIE = "invman_session";
-export const SESSION_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 60 * 60 * 24, // 24h
-};
-export const PENDING_2FA_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 60 * 5, // 5 min
-};
+export { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, PENDING_2FA_COOKIE_OPTIONS } from "@/lib/cookies";
