@@ -20,6 +20,8 @@ import {
   ShoppingCart,
   Ship,
   BarChart3,
+  UserCircle,
+  UsersRound,
 } from "lucide-react";
 import { SidebarLogo } from "./sidebar-logo";
 
@@ -43,6 +45,8 @@ const settingsNavigation = [
   { name: "Exchange Rate", href: "/settings/exchange-rate", icon: DollarSign },
   { name: "Specifications", href: "/settings/specifications", icon: Settings2 },
   { name: "Locations", href: "/settings/locations", icon: Warehouse },
+  { name: "Users", href: "/settings/users", icon: UsersRound },
+  { name: "Profile", href: "/settings/profile", icon: UserCircle },
 ];
 
 export function Sidebar() {

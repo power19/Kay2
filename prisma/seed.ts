@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -55,6 +56,18 @@ async function main() {
     });
   }
   console.log("Created default storage locations");
+
+  // Create default admin user
+  const adminEmail = (process.env.ADMIN_EMAIL || "admin@invman.local").toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD || "changeme123";
+  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
+  if (!existingAdmin) {
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
+    await prisma.user.create({
+      data: { name: "Administrator", email: adminEmail, passwordHash, role: "admin" },
+    });
+    console.log(`Created admin user: ${adminEmail}`);
+  }
 
   console.log("Seed completed successfully");
 }
