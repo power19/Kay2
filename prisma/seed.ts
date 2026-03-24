@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -55,6 +56,17 @@ async function main() {
     });
   }
   console.log("Created default storage locations");
+
+  // Upsert admin user — always sync password from env so login works after redeploy
+  const adminEmail = (process.env.ADMIN_EMAIL || "admin@invman.local").toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD || "changeme123";
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { passwordHash },
+    create: { name: "Administrator", email: adminEmail, passwordHash, role: "admin" },
+  });
+  console.log(`Admin user ready: ${adminEmail}`);
 
   console.log("Seed completed successfully");
 }

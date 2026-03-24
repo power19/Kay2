@@ -22,6 +22,9 @@ RUN mkdir -p /app/data
 ENV DATABASE_URL="file:/app/data/build.db"
 RUN npx prisma db push --accept-data-loss
 
+# Bundle seed script to plain JS so runner doesn't need tsx
+RUN node_modules/.bin/esbuild prisma/seed.ts --bundle --platform=node --outfile=prisma/seed.js --external:@prisma/client
+
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
@@ -57,4 +60,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV HOME=/app
 
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --accept-data-loss && node server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --accept-data-loss && node prisma/seed.js && node server.js"]

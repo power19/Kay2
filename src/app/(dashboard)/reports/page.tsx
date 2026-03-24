@@ -17,6 +17,8 @@ import {
   BarChart3,
   Receipt,
 } from "lucide-react";
+import { BrandsExcelButton } from "./brands-excel-button";
+import { MonthlyTaxCard } from "./monthly-tax-card";
 
 export const dynamic = "force-dynamic";
 
@@ -244,7 +246,10 @@ export default async function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Reports</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Reports</h1>
+        <BrandsExcelButton />
+      </div>
 
       {/* Revenue Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -318,6 +323,9 @@ export default async function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Monthly Sales & BTW Summary */}
+      <MonthlyTaxCard />
 
       {/* Monthly Revenue Bar Chart */}
       <Card>
